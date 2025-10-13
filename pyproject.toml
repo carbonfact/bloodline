@@ -1,0 +1,59 @@
+[project]
+name = "bloodline"
+version = "0.1.0"
+description = "Bloodline is a python package used for row-level data lineage"
+readme = "README.md"
+authors = [
+  {name = "Alexis Cruveiller", email = "alexis@carbonfact.com"},
+  {name = "Max Halford", email = "max@carbonfact.com"},
+]
+maintainers = [
+  {name = "Alexis Cruveiller", email = "alexis@carbonfact.com"},
+  {name = "Max Halford", email = "max@carbonfact.com"},
+]
+classifiers = [
+    # TODO
+]
+license = {text = "MIT"}
+dependencies = [
+  "numpy>=2.2.6",
+  "pandas>=2.3.3",
+  "typer",
+]
+requires-python = ">= 3.10"
+
+[project.optional-dependencies]
+test = [
+    "coverage",  # testing
+    "pytest",  # testing
+    "ruff",  # linting
+    "ty", # checking types
+    "ipdb", # debugging
+]
+
+[project.urls]
+bugs = "https://github.com/acruve15/bloodline/issues"
+changelog = "https://github.com/acruve15/bloodline/blob/master/changelog.md"
+homepage = "https://github.com/acruve15/bloodline"
+
+
+[tool.ty]
+# All rules are enabled as "error" by default; no need to specify unless overriding.
+# Example override: relax a rule for the entire project (uncomment if needed).
+# rules.TY015 = "warn"  # For invalid-argument-type, warn instead of error.
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # Pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "UP",  # pyupgrade
+]
+
+[tool.uv]
+package = true
