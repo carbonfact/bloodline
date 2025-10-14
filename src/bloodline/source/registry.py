@@ -41,6 +41,6 @@ def get_source_registry() -> SourceRegistry:
     return _DEFAULTS_SOURCES
 
 
-def set_source_registry(reg: SourceRegistry) -> None:
+def set_source_registry(initial: Iterable[str]) -> None:
     global _DEFAULTS_SOURCES
-    _DEFAULTS_SOURCES = reg
+    _DEFAULTS_SOURCES = SourceRegistry(initial=initial)
