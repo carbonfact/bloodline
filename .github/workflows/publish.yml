@@ -1,4 +1,4 @@
-name: "Publish"
+name: Publishing
 
 on:
   workflow_dispatch:
@@ -22,6 +22,8 @@ jobs:
         uses: astral-sh/setup-uv@v6
       - name: Install Python 3.13
         run: uv python install 3.13
+      - name: Install the project
+        run: uv sync --locked --all-extras --dev
       - name: Build
         run: uv build
       - name: Smoke test
