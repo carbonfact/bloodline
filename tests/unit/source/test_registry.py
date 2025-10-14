@@ -98,23 +98,20 @@ class TestGlobalSourceRegistryFunctions:
             assert expected in source_names
 
     def test_set_source_registry(self):
-        # Save original registry
-        original_registry = bl.source.registry.get_source_registry()
-
         try:
             # Create and set new registry
-            new_registry = SourceRegistry(initial=["CUSTOM_SOURCE"])
-            bl.source.registry.set_source_registry(new_registry)
+            new_source = ("CUSTOM_SOURCE",)
+            bl.source.registry.set_source_registry(new_source)
 
             # Verify the registry was changed
             current_registry = bl.source.registry.get_source_registry()
-            assert current_registry is new_registry
             assert len(current_registry.sources) == 1
             assert current_registry.sources[0].name == "CUSTOM_SOURCE"
-
         finally:
             # Restore original registry
-            bl.source.registry.set_source_registry(original_registry)
+            bl.source.registry.set_source_registry(
+                ("DATA_SOURCE", "HEURISTIC", "RULE", "HARD_CODING", "DATA_EXCHANGE")
+            )
 
     def test_registry_persistence_across_calls(self):
         registry1 = bl.source.registry.get_source_registry()
