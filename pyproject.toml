@@ -57,3 +57,8 @@ select = [
 
 [tool.uv]
 package = true
+
+[dependency-groups]
+test = [
+    "pytest>=8.4.2",
+]
