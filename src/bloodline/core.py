@@ -116,7 +116,7 @@ def update_table_data_lineage(
         new_columns = (
             columns_to_update
             - (set(dl.keys()) if not override else set())
-            - {DATA_LINEAGE_COLUMN, "input_payload"}  # keep your exclusion
+            - {DATA_LINEAGE_COLUMN}  # keep your exclusion
         )
         for col in new_columns:
             if col not in row or is_empty(row[col]):
