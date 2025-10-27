@@ -3,8 +3,12 @@ from pandas.api.extensions import register_dataframe_accessor
 
 from ..constants import DATA_LINEAGE_COLUMN
 from ..core import DEFAULT_SOURCE, update_table_data_lineage
+from ..er import Relationship, RelationshipType
 
 __all__ = ["LineageAccessor"]
+
+
+RELATIONSHIPS = set()
 
 
 def fuse_data_lineage_columns(df: pd.DataFrame) -> pd.DataFrame:
@@ -33,6 +37,49 @@ def fuse_data_lineage_columns(df: pd.DataFrame) -> pd.DataFrame:
     return out.drop(columns=to_drop)
 
 
+def detect_relationship(left: pd.DataFrame, right: pd.DataFrame, **join_kwargs):
+    if DATA_LINEAGE_COLUMN not in left.columns or DATA_LINEAGE_COLUMN not in right.columns:
+        # If either dataframe does not have a data lineage column, we cannot detect relationships
+        return
+
+    left_on = join_kwargs.get("left_on", None) or join_kwargs["on"]
+    left_on = left_on if isinstance(left_on, tuple) else (left_on,)
+    right_on = join_kwargs.get("right_on", None) or join_kwargs["on"]
+    right_on = right_on if isinstance(right_on, tuple) else (right_on,)
+
+    left_data_sources = {
+        key: {
+            source["source_metadata"]["name"]
+            for lineage in left[DATA_LINEAGE_COLUMN]
+            for field, source in lineage.items()
+            if field == key and source["source_type"] == "DATA_SOURCE"
+        }
+        for key in left_on
+    }
+
+    right_data_sources = {
+        key: {
+            source["source_metadata"]["name"]
+            for lineage in right[DATA_LINEAGE_COLUMN]
+            for field, source in lineage.items()
+            if field == key and source["source_type"] == "DATA_SOURCE"
+        }
+        for key in right_on
+    }
+
+    for left_key, right_key in zip(left_on, right_on, strict=False):
+        for left_source in left_data_sources[left_key]:
+            for right_source in right_data_sources[right_key]:
+                relationship = Relationship(
+                    left_name=left_source,
+                    left_key=(left_key,),
+                    right_name=right_source,
+                    right_key=(right_key,),
+                    relationship_type=RelationshipType.ONE_TO_ONE,  # Default assumption for now
+                )
+                RELATIONSHIPS.add(relationship)
+
+
 def lineage_merge(left: pd.DataFrame, right: pd.DataFrame, *args, **kwargs) -> pd.DataFrame:
     """
     Safer, explicit merge:
@@ -42,6 +89,7 @@ def lineage_merge(left: pd.DataFrame, right: pd.DataFrame, *args, **kwargs) -> p
     """
     inheritance = kwargs.pop("_lineage_inheritance", None)
     merged = pd.merge(left, right, *args, **kwargs)
+    detect_relationship(left, right, **kwargs)
     merged = fuse_data_lineage_columns(merged)
     return update_table_data_lineage(merged, inheritance=inheritance, default_source=DEFAULT_SOURCE)
 
@@ -60,6 +108,7 @@ def lineage_join(
     """
     inheritance = kwargs.pop("_lineage_inheritance", None)
     joined = left.join(right, *args, **kwargs)
+    detect_relationship(left, right, **kwargs)
     joined = fuse_data_lineage_columns(joined)
     return update_table_data_lineage(joined, inheritance=inheritance, default_source=DEFAULT_SOURCE)
 
