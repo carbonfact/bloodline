@@ -42,17 +42,19 @@ def test_disabled_tracking_initializes_empty_dicts():
     disable_data_lineage_tracking()
     try:
         updated = apply_data_lineage(df, default_source=Source.hard_coded())
-        assert list(updated["data_lineage"]) == [{}, {}]
+        assert "data_lineage" not in updated.columns
     finally:
         enable_data_lineage_tracking()
 
 
 def test_override_replaces_existing_lineage():
-    df = pd.DataFrame({
-        "id": [1],
-        "value": [100],
-        "data_lineage": [{"value": Source.data_source(path="a").to_dict()}],
-    })
+    df = pd.DataFrame(
+        {
+            "id": [1],
+            "value": [100],
+            "data_lineage": [{"value": Source.data_source(path="a").to_dict()}],
+        }
+    )
     updated = apply_data_lineage(
         df,
         default_source=Source.hard_coded(reason="override"),
