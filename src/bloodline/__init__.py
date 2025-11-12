@@ -1,17 +1,25 @@
-from .accessors.pandas import (
-    RELATIONSHIPS,
-    LineageAccessor,  # noqa: F401
+"""bloodline public API (refactor in progress)."""
+
+from .apply import apply_data_lineage
+from .lineage import Lineage, data_lineage
+from .source import Source, SourceType
+from .tracking import (
+    disable_data_lineage_tracking,
+    enable_data_lineage_tracking,
+    is_data_lineage_tracked,
+    set_data_lineage_tracking,
+    temporarily_disable_tracking,
 )
-from .core import get_source_type, register_source_type, update_data_lineage, update_table_data_lineage
-from .source import Source, set_source_registry
 
 __all__ = [
     "Source",
-    "LineageAccessor",
-    "get_source_type",
-    "register_source_type",
-    "update_data_lineage",
-    "update_table_data_lineage",
-    "set_source_registry",
-    "RELATIONSHIPS",
+    "SourceType",
+    "Lineage",
+    "data_lineage",
+    "apply_data_lineage",
+    "is_data_lineage_tracked",
+    "set_data_lineage_tracking",
+    "enable_data_lineage_tracking",
+    "disable_data_lineage_tracking",
+    "temporarily_disable_tracking",
 ]

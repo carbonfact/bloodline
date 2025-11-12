@@ -1,85 +1,79 @@
 import pandas as pd
-import pytest
 
 import bloodline as bl
 
 
-class TestIntegration:
-    def test_complete_workflow(self):
-        initial_source = bl.Source(
-            source_type=bl.get_source_type(name="DATA_SOURCE"), source_metadata={"path": "input/data.csv"}
+class TestIntegrationWorkflow:
+    def test_lineage_flow_with_rule_override(self):
+        lineage = bl.Lineage(
+            default_source=bl.Source.hard_coded(reason="default"),
+            extra_sources_type=("HEURISTIC", "RULE"),
         )
 
-        df = bl.update_table_data_lineage(
-            table=pd.DataFrame({"id": [1, 2, 3], "value": [10, 20, 30]}), default_source=initial_source
+        @lineage
+        def enrich(products: pd.DataFrame, suppliers: pd.DataFrame) -> pd.DataFrame:
+            merged = pd.merge(products, suppliers, on="sku", how="left")
+            merged["mass_in_grams"] = merged["mass"]
+            return merged
+
+        heuristic = lineage.with_source(source="HEURISTIC", metadata={"heuristic_name": "fallback_fill"})
+
+        @heuristic
+        def fill_missing(df: pd.DataFrame) -> pd.DataFrame:
+            df = df.copy()
+            mask = df["mass_in_grams"].isna()
+            df.loc[mask, "mass_in_grams"] = df.loc[mask, "fallback_mass"]
+            return df
+
+        products = pd.DataFrame(
+            {
+                "sku": ["SKU-001", "SKU-002", "SKU-003"],
+                "mass": [150, None, None],
+                "price": [20, 25, 30],
+            }
+        )
+        suppliers = pd.DataFrame(
+            {
+                "sku": ["SKU-001", "SKU-002", "SKU-003"],
+                "fallback_mass": [150, 180, 210],
+            }
         )
 
-        @bl.update_data_lineage()
-        def process_data(df: pd.DataFrame) -> pd.DataFrame:
-            df["doubled"] = df["value"] * 2
-            df["category"] = df["value"].apply(lambda x: "high" if x > 15 else "low")
-            return df
+        enriched = fill_missing(enrich(products, suppliers))
+        assert "data_lineage" in enriched.columns
 
-        df = process_data(df)
+        heuristic_entry = (
+            enriched.loc[enriched["sku"] == "SKU-003", "data_lineage"].iloc[0]["mass_in_grams"]
+        )
+        assert heuristic_entry["source_type"] == "HEURISTIC"
+        assert heuristic_entry["source_metadata"]["heuristic_name"] == "fallback_fill"
 
-        lookup_df = pd.DataFrame({"id": [1, 2, 3], "name": ["A", "B", "C"]})
-        lookup_df = bl.update_table_data_lineage(lookup_df)
-
-        result = df.lineage.merge(lookup_df, on="id", how="left")
-
-        result["final_score"] = result["doubled"] + result["id"]
-        result.lineage.impute(default_source=bl.Source.rule(name="final_calculation"))
-
-        assert "data_lineage" in result.columns
-        assert "doubled" in result.columns
-        assert "category" in result.columns
-        assert "name" in result.columns
-        assert "final_score" in result.columns
-        assert len(result) == 3
-
-    def test_multiple_transformations_chain(self):
-        source = bl.Source(source_type=bl.get_source_type(name="DATA_SOURCE"), source_metadata={"path": "test.csv"})
-
-        df = bl.update_table_data_lineage(
-            table=pd.DataFrame({"x": [1, 2, 3, 4], "y": [5, 6, 7, 8]}), default_source=source
+        mask = enriched["sku"] == "SKU-002"
+        enriched.loc[mask, "mass_in_grams"] = 250
+        rule_source = bl.Source(source_type="RULE", source_metadata={"rule_id": "mass_override"})
+        enriched = bl.apply_data_lineage(
+            table=enriched,
+            default_source=rule_source,
+            row_mask=mask,
+            column_names=["mass_in_grams"],
+            override=True,
         )
 
-        @bl.update_data_lineage()
-        def step1(df: pd.DataFrame) -> pd.DataFrame:
-            df["sum"] = df["x"] + df["y"]
-            return df
+        rule_entry = enriched.loc[mask, "data_lineage"].iloc[0]["mass_in_grams"]
+        assert rule_entry["source_type"] == "RULE"
+        assert rule_entry["source_metadata"]["rule_id"] == "mass_override"
 
-        @bl.update_data_lineage()
-        def step2(df: pd.DataFrame) -> pd.DataFrame:
-            df["product"] = df["x"] * df["y"]
-            return df
+    def test_decorator_reads_csv_and_preserves_metadata(self, tmp_path):
+        csv_path = tmp_path / "products.csv"
+        csv_path.write_text("sku,mass\nSKU-001,100\n", encoding="utf-8")
 
-        @bl.update_data_lineage()
-        def step3(df: pd.DataFrame) -> pd.DataFrame:
-            df["ratio"] = df["sum"] / df["product"]
-            return df.dropna()
+        lineage = bl.Lineage()
 
-        result = step3(step2(step1(df)))
+        @lineage
+        def load_products() -> pd.DataFrame:
+            return pd.read_csv(csv_path)
 
-        assert "data_lineage" in result.columns
-        assert all(col in result.columns for col in ["x", "y", "sum", "product", "ratio"])
-
-    def test_error_handling_in_workflow(self):
-        df = pd.DataFrame({"a": [1, 2], "b": [3, 4]})
-
-        @bl.update_data_lineage()
-        def division(df: pd.DataFrame) -> pd.DataFrame:
-            df["result"] = df["a"] / df["b"]
-            return df
-
-        result = division(df)
-        assert "result" in result.columns
-
-    def test_lineage_data_export(self, lineage_dataframe):
-        lineage_dataframe["computed"] = lineage_dataframe["a"] * 2
-        lineage_dataframe.lineage.impute()
-
-        lineage_dict = lineage_dataframe["data_lineage"].to_dict()
-
-        assert isinstance(lineage_dict, dict)
-        assert len(lineage_dict) == len(lineage_dataframe)
+        df = load_products()
+        lineage_entry = df.loc[0, "data_lineage"]["sku"]
+        assert lineage_entry["source_type"] == bl.SourceType.DATA_SOURCE.value
+        assert str(csv_path) in lineage_entry["source_metadata"]["file_path"]

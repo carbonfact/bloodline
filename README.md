@@ -1,102 +1,108 @@
-# Bloodline
+# Bloodline (refactor preview)
 
-![alt text](image.png)
+Bloodline is a tiny helper library that lets you track *row-level* provenance for pandas dataframes without rewriting your business logic. Decorate a function, keep calling `pd.read_csv` / `pd.merge` / `pd.DataFrame.join` as usual, and Bloodline injects a `data_lineage` column that records—per row and per column—where values came from.
 
-![PyPI version](https://img.shields.io/pypi/v/bloodline.svg)
-[![Documentation Status](https://readthedocs.org/projects/bloodline/badge/?version=latest)](https://bloodline.readthedocs.io/en/latest/?version=latest)
-
-Bloodline is a minimal python package used for row-level data lineage tracking in pandas dataframes (only for now). Bloodline helps Carbonfact track data transformations and their associated metadata through a data pipeline.
-
-> **Why create bloodline?**
->
-> - most lineage tools cover only table and column level lineage
-> - we need row-level transparency for our carbon footprint calculations
-> - it is a way to track customers' data quality
-
-## Installation
-
-You can install Bloodline via pip:
+## Install
 
 ```bash
-pip install bloodline
+pip install bloodline  # or uv pip install bloodline
 ```
 
-### Development installation
-
-To install Bloodline for development, clone the repository and install the package using `uv`:
+For local development:
 
 ```bash
-uv sync
+uv sync              # create the virtual env declared in pyproject.toml
+uv run pytest        # run the unit suite
 ```
 
-To run tets, use:
+## Core concepts
 
-```bash
-uv run pytest
-```
+- **Source types** – the OSS build ships two canonical types: `SourceType.DATA_SOURCE` (data you read) and `SourceType.HARD_CODED` (values you derive). You can still create ad-hoc string-based sources via `Lineage.with_source`.
+- **`data_lineage` column** – every dataframe touched by Bloodline carries a dict per row: `{column_name: {"source_type": ..., "source_metadata": {...}}}`.
+- **Scoped pandas hooks** – Bloodline temporarily patches `pd.read_csv`, `pd.read_excel`, `pd.merge`, and `DataFrame.join` while a decorated function executes. Outside that scope, pandas behaves exactly as normal. This part is probably what brings the most value.
 
-## Usage
+### Why context-scoped hooks?
 
-### Tracking data lineage
+We tried dataframe accessors and global monkeypatches. We want something better, that could work without updating your current code but still give you control
 
-You have two options to track data lineage:
+Context-scoped hooks hit the sweet spot:
 
-1. Use the `@update_data_lineage` decorator to automatically track lineage when applying functions to dataframes.
+1. Hooks exist only while a decorated function runs, so pandas behaves normally everywhere else.
+2. IO helpers automatically tag provenance (file paths for `pd.read_csv` and `pd.read_excel`) without asking users to do anything special.
+3. Nested decorators cooperate because each scope manages its own patches; the innermost decorator always sets the active default source.
+
+If you need Bloodline to disappear altogether, call `disable_data_lineage_tracking()`.
+
+## Quick start
 
 ```python
 import pandas as pd
 import bloodline as bl
 
-@bl.update_data_lineage()
-def transform_data(df: pd.DataFrame) -> pd.DataFrame:
-    # Your data transformation logic here
-    return df
-
-# Example usage
-data = pd.DataFrame({
-    'A': [1, 2, 3],
-    'B': [4, 5, 6]
-})
-data = transform_data(data)
-```
-
-2. Using the `update_table_data_lineage` function to manually update lineage after transformations.
-
-```python
-import pandas as pd
-import bloodline as bl
-
-initial_data_source = bl.Source(
-    source_type=bl.get_source_type(name="DATA_SOURCE"),
-    source_metadata={"path": "input/data.csv"},
+lineage = bl.Lineage(
+    default_source=bl.Source.hard_coded(reason="default"),
+    extra_sources_type=("HEURISTIC", "RULE"),
 )
 
-df = bl.update_table_data_lineage(
-    table=pd.DataFrame({"id": [1, 2], "a": [10, 20]}),
-    default_source=initial_data_source,
-)
+@lineage
+def enrich_products(products_path, suppliers_path):
+    products = pd.read_csv(products_path)
+    suppliers = pd.read_csv(suppliers_path)
+    merged = pd.merge(products, suppliers, on="product_id", how="left")
+    return merged
+
+
+result = enrich_products("products.csv", "suppliers.csv")
+print(result["data_lineage"].iloc[0])
 ```
 
-### Adding new sources
+What happens under the hood:
 
-At Carbonfact, we have a list of predefined source types. But you can add new sources as follows:
+1. `@lineage` enters a context manager, installing lineage-aware pandas hooks.
+2. `pd.read_csv` records `{"source_type": "DATA_SOURCE", "source_metadata": {"file_path": ...}}` automatically.
+3. `pd.merge` (and `DataFrame.join`) fuse any existing `data_lineage` columns, so you never end up with `_x/_y` suffixes.
+4. When the function returns, Bloodline imputes lineage for any new columns using the decorator’s default source.
+
+> ⚠️ If the wrapped function doesn’t return a single dataframe, Bloodline logs a warning (via `loguru`) and skips lineage updates.
+
+## Manual adjustments
+
+Because we do not cover all pandas operations yet, we enable manual adjustments. Here’s an example of our product-mass rule we use at Carbonfact: only the selected SKUs change, and we force their lineage to `HEURISTIC` while leaving the rest untouched.
 
 ```python
-import bloodline as bl
+from bloodline.apply import apply_data_lineage
+from bloodline.source import Source
 
-new_source = bl.register_source_type("MY_NEW_SOURCE")
-```
+mask = df["sku"].isin(selected_skus)
+df.loc[mask, "sku_mass"] = override_value
 
-And even overrid the default source registry:
-
-```python
-import bloodline as bl
-
-bl.set_source_registry(
-    initial=("MY_NEW_SOURCE", "ANOTHER_SOURCE")
+df = apply_data_lineage(
+    table=df,
+    default_source=Source(source_type="HEURISTIC", source_metadata={"heuristic_name": "mass_filler"}),
+    row_mask=mask,
+    column_names=["sku_mass"],
+    override=True,
 )
 ```
 
-## Limitations
+> ℹ️ Add `inheritance={"child_column": "parent_column"}` when calculating derived columns and Bloodline will copy the parent’s lineage automatically. Empty cells are ignored so the `data_lineage` dict stays lean.
 
-WIP
+## Toggling tracking
+
+Bloodline exposes `is_data_lineage_tracked()`, `enable_data_lineage_tracking()`, `disable_data_lineage_tracking()`, and `temporarily_disable_tracking()` (context manager) under `bloodline.tracking`. Use these around bulk operations where provenance isn’t needed.
+
+## Developer guide
+
+Want to extend Bloodline with new pandas operators? Start with [`docs/developer_guide.md`](docs/developer_guide.md). It explains how the hook manager works, what tests to add, and how to keep the `data_lineage` contract intact.
+
+### Design recap
+
+- Users write normal pandas code. They shouldn’t swap `pd.merge` for a custom accessor.
+- The `Lineage` decorator installs temporary hooks on pandas APIs (currently `read_csv`, `read_excel`, `merge`, `DataFrame.join`). Hooks must be context-scoped so that `pd` behaves normally elsewhere.
+- Returning from the decorator triggers a final `apply_data_lineage` pass, which fills any gaps column-by-column.
+
+## Next steps
+
+- Bring more pandas operations under the hook manager (prime candidates: `fillna`, `where`, `DataFrame.assign`).
+- Flesh out the developer guide with real-world recipes as new hooks land.
+- Experiment with lightweight lineage visualizations once the API surface settles.
