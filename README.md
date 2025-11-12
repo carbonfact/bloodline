@@ -95,11 +95,7 @@ df = apply_data_lineage(
 
 Bloodline exposes `is_data_lineage_tracked()`, `enable_data_lineage_tracking()`, `disable_data_lineage_tracking()`, and `temporarily_disable_tracking()` (context manager) under `bloodline.tracking`. Use these around bulk operations where provenance isn’t needed.
 
-## Developer guide
-
-Want to extend Bloodline with new pandas operators? Start with [`docs/developer_guide.md`](docs/developer_guide.md). It explains how the hook manager works, what tests to add, and how to keep the `data_lineage` contract intact.
-
-### Design recap
+## Design recap
 
 - Users write normal pandas code. They shouldn’t swap `pd.merge` for a custom accessor.
 - The `Lineage` decorator installs temporary hooks on pandas APIs (currently `read_csv`, `read_excel`, `merge`, `DataFrame.join`). Hooks must be context-scoped so that `pd` behaves normally elsewhere.
