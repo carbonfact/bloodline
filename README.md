@@ -1,4 +1,8 @@
-# Bloodline (refactor preview)
+# Bloodline
+
+![alt text](image.png)
+
+![PyPI version](https://img.shields.io/pypi/v/bloodline.svg)
 
 Bloodline is a tiny helper library that lets you track *row-level* provenance for pandas dataframes without rewriting your business logic. Decorate a function, keep calling `pd.read_csv` / `pd.merge` / `pd.DataFrame.join` as usual, and Bloodline injects a `data_lineage` column that records—per row and per column—where values came from.
 
