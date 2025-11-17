@@ -1,0 +1,54 @@
+import pandas as pd
+from loguru import logger
+
+from bloodline.constants import DATA_LINEAGE_COLUMN
+from bloodline.lineage import Lineage
+from bloodline.source import SourceType
+
+
+def test_lineage_adds_column_with_default_source():
+    lineage = Lineage()
+
+    @lineage
+    def build_df():
+        return pd.DataFrame({"value": [1, 2]})
+
+    result = build_df()
+    assert DATA_LINEAGE_COLUMN in result.columns
+    assert result.loc[0, DATA_LINEAGE_COLUMN]["value"]["source_type"] == SourceType.HARD_CODED.value
+
+
+def test_with_source_allows_custom_type():
+    lineage = Lineage()
+    heuristic = lineage.with_source(source="HEURISTIC", metadata={"heuristic_name": "mass_filler"})
+
+    @heuristic
+    def fill(df: pd.DataFrame) -> pd.DataFrame:
+        df = df.copy()
+        df["mass"] = 2
+        return df
+
+    result = fill(pd.DataFrame({"mass": [0]}))
+    assert result.loc[0, DATA_LINEAGE_COLUMN]["mass"]["source_type"] == "HEURISTIC"
+    assert result.loc[0, DATA_LINEAGE_COLUMN]["mass"]["source_metadata"]["heuristic_name"] == "mass_filler"
+
+
+def test_non_dataframe_result_emits_warning():
+    lineage = Lineage()
+
+    @lineage
+    def invalid():
+        return "oops"
+
+    captured: list[str] = []
+
+    def _sink(message):
+        captured.append(str(message))
+
+    sink_id = logger.add(_sink, level="WARNING")
+    try:
+        assert invalid() == "oops"
+    finally:
+        logger.remove(sink_id)
+
+    assert any("Lineage decorator expected" in entry for entry in captured)
