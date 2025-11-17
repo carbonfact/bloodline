@@ -1,3 +1,3 @@
-DATA_LINEAGE_COLUMN = "data_lineage"
+"""Shared constants for bloodline."""
 
-__all__ = ["DATA_LINEAGE_COLUMN"]
+DATA_LINEAGE_COLUMN = "data_lineage"
