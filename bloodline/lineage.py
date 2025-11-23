@@ -168,7 +168,8 @@ class Lineage:
                     result_as_list[return_arg] = table_with_lineage  # type: ignore
                     return tuple(result_as_list)
                 elif isinstance(result, dict):
-                    return {**result, return_arg: table_with_lineage}
+                    result[return_arg] = table_with_lineage
+                    return result
                 else:
                     logger.warning(
                         f"Lineage decorator expected a tuple or dict when using 'return_arg' in '{func.__name__}'; "
