@@ -268,8 +268,8 @@ Bloodline keeps track of each join between tables. You can generate E/R diagrams
 
 ```mermaid
 erDiagram
-    "tests/examples/users.csv" ||--o{ "tests/examples/purchases.csv" : ""
-    "tests/examples/products.csv" ||--o{ "tests/examples/purchases.csv" : ""
+    "tests/examples/users.csv" ||--o{ "tests/examples/purchases.csv" : "id -> user_id"
+    "tests/examples/products.csv" ||--o{ "tests/examples/purchases.csv" : "sku -> sku"
 ```
 
 ### Toggling tracking on/off
