@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import enum
 import functools
 from collections.abc import Callable, Iterable, Mapping
 from typing import Any
@@ -17,6 +18,10 @@ from .source import Source, SourceType
 __all__ = ["Lineage", "data_lineage"]
 
 Decorator = Callable[[Callable[..., pd.DataFrame]], Callable[..., pd.DataFrame]]
+
+
+class DataFrameProtocol(enum.StrEnum):
+    PANDAS = "pandas"
 
 
 class Lineage:
@@ -35,6 +40,7 @@ class Lineage:
     This mirrors the design goal we use internally: zero boilerplate for
     everyday pandas flows, explicit overrides when you want to do something
     fancy.
+
     """
 
     def __init__(
@@ -43,14 +49,16 @@ class Lineage:
         default_source: Source | None = None,
         extra_sources_type: Iterable[str] | None = None,
         verbosity: bool = False,
+        dataframe_protocol: str = DataFrameProtocol.PANDAS,
     ) -> None:
         self.default_source = default_source or Source.hard_coded()
         self.extra_sources_type = tuple(extra_sources_type or ())
         self.verbosity = verbosity
+        self.dataframe_protocol = DataFrameProtocol(dataframe_protocol)
 
     def __call__(self, func: Callable | None = None, *, metadata: Mapping[str, Any] | None = None):
         """Allow the instance itself to be used as ``@lineage``."""
-        decorator = self._build_decorator(self.default_source, metadata)
+        decorator = self._build_decorator(source=self.default_source, base_metadata=metadata)
         if func is None:
             return decorator
         return decorator(func)
@@ -58,12 +66,13 @@ class Lineage:
     def with_source(self, *, source: str | Source | SourceType, metadata: Mapping[str, Any] | None = None):
         """Return a decorator bound to a specific ``source`` type/metadata."""
         override = self._coerce_source(source)
-        return self._build_decorator(override, metadata)
+        return self._build_decorator(source=override, base_metadata=metadata)
 
     # ------------------------------------------------------------------
 
     def _build_decorator(self, source: Source, base_metadata: Mapping[str, Any] | None):
         """Combine metadata layers and produce the actual decorator."""
+
         def decorator(func: Callable | None = None, *, metadata: Mapping[str, Any] | None = None):
             combined_metadata = self._merge_metadata(base_metadata, metadata)
             effective_source = source if not combined_metadata else source.with_metadata(**combined_metadata)
@@ -75,6 +84,7 @@ class Lineage:
 
     def _wrap(self, func: Callable, default_source: Source, metadata: Mapping[str, Any] | None):
         """Install patches, run ``func``, and normalize return values."""
+
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             runtime_config = LineageRuntimeConfig(
@@ -83,7 +93,12 @@ class Lineage:
                 extra_sources_type=self.extra_sources_type,
                 verbosity=self.verbosity,
             )
-            with pandas_lineage_patched(), temporary_lineage_context(runtime_config):
+
+            patch = {
+                DataFrameProtocol.PANDAS: pandas_lineage_patched,
+            }
+
+            with patch[self.dataframe_protocol](), temporary_lineage_context(runtime_config):
                 result = func(*args, **kwargs)
 
             if not isinstance(result, pd.DataFrame):
