@@ -123,6 +123,7 @@ class PandasHookManager:
 
     @staticmethod
     def _extract_path(args: tuple[Any, ...], kwargs: dict[str, Any]):
+        # TODO: handle Excel sheet name
         if args:
             candidate = args[0]
         else:
