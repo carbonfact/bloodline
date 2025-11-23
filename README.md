@@ -1,7 +1,23 @@
 <h1>𝕭𝖑𝖔𝖔𝖉𝖑𝖎𝖓𝖊</h1>
 
-[![PyPI](https://img.shields.io/pypi/v/bloodline.svg)](https://pypi.org/project/bloodline/)
-[![Testing](https://github.com/carbonfact/bloodline/actions/workflows/test.yml/badge.svg)](https://github.com/carbonfact/bloodline/actions/workflows/test.yml)
+<img src="https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExc2VvOG54ZDR0d3lqaDE1dm8wMTR5dWZxbWViazZrYjUwdTFteW5tcSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/26tn0L2jz3artlckM/giphy.gif" width="33%" align="right" />
+
+<p>
+<!-- Tests -->
+<a href="https://github.com/carbonfact/bloodline/actions/workflows/test.yml">
+    <img src="https://github.com/carbonfact/bloodline/actions/workflows/test.yml/badge.svg" alt="tests">
+</a>
+
+<!-- PyPI -->
+<a href="https://pypi.org/project/bloodline">
+    <img src="https://img.shields.io/pypi/v/bloodline.svg?label=release&color=blue" alt="pypi">
+</a>
+
+<!-- License -->
+<a href="https://opensource.org/license/apache-2-0/">
+    <img src="https://img.shields.io/github/license/carbonfact/bloodline" alt="license">
+</a>
+</p>
 
 Bloodline is a small library to track *row-level* provenance of data. It is not invasive and does not require modifying your code. Bloodline supports [pandas](https://pandas.pydata.org/), but could to be extended to other dataframe libraries.
 
