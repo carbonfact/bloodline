@@ -45,5 +45,6 @@ class EntityRelationshipDiagram:
         }
         for rel in self.relationships:
             symbol = relationship_symbols[rel.relationship_type]
-            lines.append(f'    "{rel.left_name}" {symbol} "{rel.right_name}" : ""')
+            label = f"{rel.left_key} -> {rel.right_key}"
+            lines.append(f'    "{rel.left_name}" {symbol} "{rel.right_name}" : "{label}"')
         return "\n".join(lines)
