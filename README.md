@@ -262,7 +262,7 @@ Bloodline keeps track of each join between tables. You can generate E/R diagrams
 >>> purchases = load_purchases()
 
 >>> with open("tests/examples/erd.mmd", "w") as f:
-...     f.write(lineage.erd.to_mermaid())
+...     _ = f.write(lineage.erd.to_mermaid())
 
 ```
 

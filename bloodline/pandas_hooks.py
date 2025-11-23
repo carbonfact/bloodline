@@ -169,6 +169,8 @@ def _active_default_source() -> Source:
 
 
 def _list_tables_in_data_lineage(table: pd.DataFrame, join_key: str) -> list[str]:
+    if DATA_LINEAGE_COLUMN not in table.columns:
+        return []
     return table[DATA_LINEAGE_COLUMN].str[join_key].str["source_metadata"].str["file_path"].unique().tolist()  # type: ignore
 
 
