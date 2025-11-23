@@ -248,7 +248,7 @@ Bloodline exposes methods to control tracking at runtime:
 
 ## Contributing
 
-Feel free to reach out to [max@carbonfact.com](mailto:max@carbonfact.com) and [alexis@carbonfact.com](mailto:alexis@carbonfact.com) if you want to know more and/or contribute 😊
+Feel free to reach out to [alexis@carbonfact.com](mailto:alexis@carbonfact.com) and [max@carbonfact.com](mailto:max@carbonfact.com) if you want to know more and/or contribute 😊
 
 ## License
 
