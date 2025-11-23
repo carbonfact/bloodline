@@ -1,43 +1,27 @@
 # 𐌱𐌻𐍉𐍉𐌳𐌻𐌹𐌽𐌴
 
-![alt text](image.png)
+#![alt text](image.png)
 
-![PyPI version](https://img.shields.io/pypi/v/bloodline.svg)
+[![PyPI](https://img.shields.io/pypi/v/bloodline.svg)](https://pypi.org/project/bloodline/)
+[![Testing](https://github.com/carbonfact/bloodline/actions/workflows/test.yml/badge.svg)](https://github.com/carbonfact/bloodline/actions/workflows/test.yml)
 
 Bloodline is a tiny helper library that lets you track *row-level* provenance for pandas dataframes without rewriting your business logic. Decorate a function, keep calling `pd.read_csv` / `pd.merge` / `pd.DataFrame.join` as usual, and Bloodline injects a `data_lineage` column that records—per row and per column—where values came from.
 
 ## Install
 
-```bash
-pip install bloodline  # or uv pip install bloodline
+```sh
+pip install bloodline
 ```
 
 For local development:
 
-```bash
-uv sync              # create the virtual env declared in pyproject.toml
-uv run pytest        # run the unit suite
+```sh
+git clone https://github.com/carbonfact/bloodline
+uv sync
+uv run pytest
 ```
 
-## Core concepts
-
-- **Source types** – the OSS build ships two canonical types: `SourceType.DATA_SOURCE` (data you read) and `SourceType.HARD_CODED` (values you derive). You can still create ad-hoc string-based sources via `Lineage.with_source`.
-- **`data_lineage` column** – every dataframe touched by Bloodline carries a dict per row: `{column_name: {"source_type": ..., "source_metadata": {...}}}`.
-- **Scoped pandas hooks** – Bloodline temporarily patches `pd.read_csv`, `pd.read_excel`, `pd.merge`, and `DataFrame.join` while a decorated function executes. Outside that scope, pandas behaves exactly as normal. This part is probably what brings the most value.
-
-### Why context-scoped hooks?
-
-We tried dataframe accessors and global monkeypatches. We want something better, that could work without updating your current code but still give you control
-
-Context-scoped hooks hit the sweet spot:
-
-1. Hooks exist only while a decorated function runs, so pandas behaves normally everywhere else.
-2. IO helpers automatically tag provenance (file paths for `pd.read_csv` and `pd.read_excel`) without asking users to do anything special.
-3. Nested decorators cooperate because each scope manages its own patches; the innermost decorator always sets the active default source.
-
-If you need Bloodline to disappear altogether, call `disable_data_lineage_tracking()`.
-
-## Quick start
+## Getting started
 
 ```python
 import pandas as pd
@@ -68,6 +52,24 @@ What happens under the hood:
 4. When the function returns, Bloodline imputes lineage for any new columns using the decorator’s default source.
 
 > ⚠️ If the wrapped function doesn’t return a single dataframe, Bloodline logs a warning (via `loguru`) and skips lineage updates.
+
+## Key concepts
+
+- **Source types** – the OSS build ships two canonical types: `SourceType.DATA_SOURCE` (data you read) and `SourceType.HARD_CODED` (values you derive). You can still create ad-hoc string-based sources via `Lineage.with_source`.
+- **`data_lineage` column** – every dataframe touched by Bloodline carries a dict per row: `{column_name: {"source_type": ..., "source_metadata": {...}}}`.
+- **Scoped pandas hooks** – Bloodline temporarily patches `pd.read_csv`, `pd.read_excel`, `pd.merge`, and `DataFrame.join` while a decorated function executes. Outside that scope, pandas behaves exactly as normal. This part is probably what brings the most value.
+
+### Why context-scoped hooks?
+
+We tried dataframe accessors and global monkeypatches. We want something better, that could work without updating your current code but still give you control
+
+Context-scoped hooks hit the sweet spot:
+
+1. Hooks exist only while a decorated function runs, so pandas behaves normally everywhere else.
+2. IO helpers automatically tag provenance (file paths for `pd.read_csv` and `pd.read_excel`) without asking users to do anything special.
+3. Nested decorators cooperate because each scope manages its own patches; the innermost decorator always sets the active default source.
+
+If you need Bloodline to disappear altogether, call `disable_data_lineage_tracking()`.
 
 ## Manual adjustments
 
