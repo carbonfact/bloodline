@@ -43,7 +43,7 @@ class EntityRelationshipDiagram:
             RelationshipType.MANY_TO_ONE: "o{--||",
             RelationshipType.MANY_TO_MANY: "o{--o{",
         }
-        for rel in self.relationships:
+        for rel in sorted(self.relationships, key=lambda r: (r.left_name, r.right_name, r.left_key, r.right_key)):
             symbol = relationship_symbols[rel.relationship_type]
             label = f"{rel.left_key} -> {rel.right_key}"
             lines.append(f'    "{rel.left_name}" {symbol} "{rel.right_name}" : "{label}"')

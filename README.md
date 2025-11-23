@@ -118,14 +118,15 @@ Bloodline automatically merges `data_lineage` columns when you merge dataframes.
 
 >>> purchases = read_purchases()
 >>> for col in purchases.columns.difference(['data_lineage']):
-...     print(f"{col}: {purchases['data_lineage'].iloc[0][col]}")
-date: {'source_type': 'DATA_SOURCE', 'source_metadata': {'file_path': 'tests/examples/purchases.csv'}}
-id: {'source_type': 'DATA_SOURCE', 'source_metadata': {'file_path': 'tests/examples/users.csv'}}
-mass: {'source_type': 'DATA_SOURCE', 'source_metadata': {'file_path': 'tests/examples/products.csv'}}
-mass_kg: {'source_type': 'UNKNOWN', 'source_metadata': {}}
-price: {'source_type': 'DATA_SOURCE', 'source_metadata': {'file_path': 'tests/examples/products.csv'}}
-sku: {'source_type': 'DATA_SOURCE', 'source_metadata': {'file_path': 'tests/examples/products.csv'}}
-user_id: {'source_type': 'DATA_SOURCE', 'source_metadata': {'file_path': 'tests/examples/purchases.csv'}}
+...     dl = purchases['data_lineage'].iloc[0][col]
+...     print(f"{col:<8} {dl['source_type']:<12} {dl['source_metadata'].get('file_path') or ''}")
+date     DATA_SOURCE  tests/examples/purchases.csv
+id       DATA_SOURCE  tests/examples/users.csv
+mass     DATA_SOURCE  tests/examples/products.csv
+mass_kg  UNKNOWN
+price    DATA_SOURCE  tests/examples/products.csv
+sku      DATA_SOURCE  tests/examples/products.csv
+user_id  DATA_SOURCE  tests/examples/purchases.csv
 
 ```
 
