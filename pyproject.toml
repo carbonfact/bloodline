@@ -1,7 +1,7 @@
 [project]
 name = "bloodline"
-version = "0.1.0"
-description = "Bloodline is a python package used for row-level data lineage"
+version = "0.2.0"
+description = "🧛 Track row-level data lineage in tables"
 readme = "README.md"
 authors = [
   {name = "Alexis Cruveiller", email = "alexis@carbonfact.com"},
