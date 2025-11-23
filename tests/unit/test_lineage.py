@@ -15,7 +15,7 @@ def test_lineage_adds_column_with_default_source():
 
     result = build_df()
     assert DATA_LINEAGE_COLUMN in result.columns
-    assert result.loc[0, DATA_LINEAGE_COLUMN]["value"]["source_type"] == SourceType.HARD_CODED.value
+    assert result.loc[0, DATA_LINEAGE_COLUMN]["value"]["source_type"] == SourceType.UNKNOWN.value
 
 
 def test_with_source_allows_custom_type():
@@ -63,7 +63,7 @@ def test_tuple_return():
 
     table, _ = build_df()
     assert DATA_LINEAGE_COLUMN in table.columns
-    assert table.loc[0, DATA_LINEAGE_COLUMN]["value"]["source_type"] == SourceType.HARD_CODED.value
+    assert table.loc[0, DATA_LINEAGE_COLUMN]["value"]["source_type"] == SourceType.UNKNOWN.value
 
 
 def test_dict_return():
@@ -75,7 +75,7 @@ def test_dict_return():
 
     table = build_df()["table"]
     assert DATA_LINEAGE_COLUMN in table.columns
-    assert table.loc[0, DATA_LINEAGE_COLUMN]["value"]["source_type"] == SourceType.HARD_CODED.value
+    assert table.loc[0, DATA_LINEAGE_COLUMN]["value"]["source_type"] == SourceType.UNKNOWN.value
 
 
 def test_tuple_return_with_source():

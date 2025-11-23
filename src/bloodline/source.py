@@ -13,7 +13,7 @@ class SourceType(enum.Enum):
     """Fixed taxonomy available in the OSS package."""
 
     DATA_SOURCE = "DATA_SOURCE"
-    HARD_CODED = "HARD_CODED"
+    UNKNOWN = "UNKNOWN"
 
 
 SourceMetadata = dict[str, Any]
@@ -35,8 +35,8 @@ class Source:
         return Source(source_type=SourceType.DATA_SOURCE, source_metadata=dict(metadata))
 
     @staticmethod
-    def hard_coded(**metadata: Any) -> Source:
-        return Source(source_type=SourceType.HARD_CODED, source_metadata=dict(metadata))
+    def unknown(**metadata: Any) -> Source:
+        return Source(source_type=SourceType.UNKNOWN, source_metadata=dict(metadata))
 
     def with_metadata(self, **metadata: Any) -> Source:
         merged = dict(self.source_metadata)

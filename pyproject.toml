@@ -52,6 +52,7 @@ addopts = [
     "--tb=short",
     "--strict-markers",
     "--disable-warnings",
+    "--doctest-glob=*.md",
 ]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",

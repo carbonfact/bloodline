@@ -52,7 +52,7 @@ class Lineage:
         verbosity: bool = False,
         dataframe_protocol: str = DataFrameProtocol.PANDAS,
     ) -> None:
-        self.default_source = default_source or Source.hard_coded()
+        self.default_source = default_source or Source.unknown()
         self.extra_sources_type = tuple(extra_sources_type or ())
         self.verbosity = verbosity
         self.dataframe_protocol = DataFrameProtocol(dataframe_protocol)
@@ -64,9 +64,12 @@ class Lineage:
         *,
         metadata: Mapping[str, typing.Any] | None = None,
         return_arg: typing.Hashable | None = None,
+        inheritance: dict[str, str] | None = None,
     ):
         """Allow the instance itself to be used as ``@lineage``."""
-        decorator = self._build_decorator(source=self.default_source, base_metadata=metadata, return_arg=return_arg)
+        decorator = self._build_decorator(
+            source=self.default_source, base_metadata=metadata, return_arg=return_arg, inheritance=inheritance
+        )
         if func is None:
             return decorator
         return decorator(func)
@@ -85,7 +88,11 @@ class Lineage:
     # ------------------------------------------------------------------
 
     def _build_decorator(
-        self, source: Source, base_metadata: Mapping[str, typing.Any] | None, return_arg: typing.Hashable | None
+        self,
+        source: Source,
+        base_metadata: Mapping[str, typing.Any] | None,
+        return_arg: typing.Hashable | None,
+        inheritance: dict[str, str] | None = None,
     ):
         """Combine metadata layers and produce the actual decorator."""
 
@@ -99,10 +106,18 @@ class Lineage:
             effective_source = source if not combined_metadata else source.with_metadata(**combined_metadata)
             if func is None:
                 return lambda actual: self._wrap(
-                    func=actual, default_source=effective_source, metadata=combined_metadata, return_arg=return_arg
+                    func=actual,
+                    default_source=effective_source,
+                    metadata=combined_metadata,
+                    return_arg=return_arg,
+                    inheritance=inheritance,
                 )
             return self._wrap(
-                func=func, default_source=effective_source, metadata=combined_metadata, return_arg=return_arg
+                func=func,
+                default_source=effective_source,
+                metadata=combined_metadata,
+                return_arg=return_arg,
+                inheritance=inheritance,
             )
 
         return decorator
@@ -116,6 +131,7 @@ class Lineage:
         default_source: Source,
         metadata: Mapping[str, typing.Any] | None,
         return_arg: typing.Hashable | None,
+        inheritance: dict[str, str] | None = None,
     ) -> typing.Callable:
         """Install patches, run ``func``, and normalize return values."""
 
@@ -145,7 +161,7 @@ class Lineage:
                 )
                 return result
 
-            table_with_lineage = apply_data_lineage(table, default_source=default_source)
+            table_with_lineage = apply_data_lineage(table, default_source=default_source, inheritance=inheritance)
             if return_arg is not None:
                 if isinstance(result, tuple):
                     result_as_list = list(result)

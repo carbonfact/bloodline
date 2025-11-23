@@ -6,7 +6,7 @@ import bloodline as bl
 class TestIntegrationWorkflow:
     def test_lineage_flow_with_rule_override(self):
         lineage = bl.Lineage(
-            default_source=bl.Source.hard_coded(reason="default"),
+            default_source=bl.Source.unknown(reason="default"),
             extra_sources_type=("HEURISTIC", "RULE"),
         )
 
@@ -42,9 +42,7 @@ class TestIntegrationWorkflow:
         enriched = fill_missing(enrich(products, suppliers))
         assert "data_lineage" in enriched.columns
 
-        heuristic_entry = (
-            enriched.loc[enriched["sku"] == "SKU-003", "data_lineage"].iloc[0]["mass_in_grams"]
-        )
+        heuristic_entry = enriched.loc[enriched["sku"] == "SKU-003", "data_lineage"].iloc[0]["mass_in_grams"]
         assert heuristic_entry["source_type"] == "HEURISTIC"
         assert heuristic_entry["source_metadata"]["heuristic_name"] == "fallback_fill"
 

@@ -147,4 +147,4 @@ def pandas_lineage_patched(detected_relationship_hook: Callable[[erd.Relationshi
 
 def _active_default_source() -> Source:
     ctx = get_lineage_context()
-    return ctx.default_source if ctx else Source.hard_coded()
+    return ctx.default_source if ctx else Source.unknown()
