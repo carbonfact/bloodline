@@ -10,6 +10,7 @@ from collections.abc import Callable, Iterable, Mapping
 import pandas as pd
 from loguru import logger
 
+from . import erd
 from .apply import apply_data_lineage
 from .context import LineageRuntimeConfig, temporary_lineage_context
 from .pandas_hooks import pandas_lineage_patched
@@ -55,6 +56,7 @@ class Lineage:
         self.extra_sources_type = tuple(extra_sources_type or ())
         self.verbosity = verbosity
         self.dataframe_protocol = DataFrameProtocol(dataframe_protocol)
+        self.relationships = set()
 
     def __call__(
         self,
@@ -105,6 +107,9 @@ class Lineage:
 
         return decorator
 
+    def _handle_detected_relationship(self, relationship: erd.Relationship) -> None:
+        self.relationships.add(relationship)
+
     def _wrap(
         self,
         func: Callable,
@@ -125,9 +130,12 @@ class Lineage:
 
             patch = {
                 DataFrameProtocol.PANDAS: pandas_lineage_patched,
-            }
+            }[self.dataframe_protocol]
 
-            with patch[self.dataframe_protocol](), temporary_lineage_context(runtime_config):
+            with (
+                patch(detected_relationship_hook=self._handle_detected_relationship),
+                temporary_lineage_context(runtime_config),
+            ):
                 result = func(*args, **kwargs)
 
             table = result[return_arg] if return_arg is not None else result

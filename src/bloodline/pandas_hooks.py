@@ -9,6 +9,7 @@ from typing import Any
 
 import pandas as pd
 
+from . import erd
 from .apply import apply_data_lineage
 from .constants import DATA_LINEAGE_COLUMN
 from .context import get_lineage_context
@@ -48,9 +49,9 @@ class PandasHookManager:
         self._original_merge: OriginalFunction | None = None
         self._original_join: OriginalFunction | None = None
 
-    def install(self) -> None:
+    def install(self, detected_relationship_hook: Callable[[erd.Relationship], None]) -> None:
         if self._stack_depth == 0:
-            self._patch()
+            self._patch(detected_relationship_hook=detected_relationship_hook)
         self._stack_depth += 1
 
     def uninstall(self) -> None:
@@ -60,7 +61,7 @@ class PandasHookManager:
         if self._stack_depth == 0:
             self._restore()
 
-    def _patch(self) -> None:
+    def _patch(self, detected_relationship_hook: Callable[[erd.Relationship], None]) -> None:
         self._original_read_csv = pd.read_csv
         self._original_read_excel = pd.read_excel
         self._original_merge = pd.merge
@@ -135,8 +136,8 @@ HOOK_MANAGER = PandasHookManager()
 
 
 @contextmanager
-def pandas_lineage_patched():
-    HOOK_MANAGER.install()
+def pandas_lineage_patched(detected_relationship_hook: Callable[[erd.Relationship], None]):
+    HOOK_MANAGER.install(detected_relationship_hook=detected_relationship_hook)
     try:
         yield
     finally:
