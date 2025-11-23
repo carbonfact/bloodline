@@ -21,7 +21,7 @@
 
 Bloodline is a small library to track *row-level* provenance of data. It is not invasive and does not require modifying your code. Bloodline supports [pandas](https://pandas.pydata.org/), but could to be extended to other dataframe libraries.
 
-We use this at Carbonfact to track data lineage across all the ETL pipelines we use to ingest our customers' data. This allows us to tell them where each data point they see comes from, and to keep track of data quality issues back to their source.
+We use Bloodline at [Carbonfact](https://www.carbonfact.com/) to track data lineage across the ETL pipelines that ingest our customers' scattered data. This allows us to tell them where each data point we present to them comes from, as well as measuring data quality metrics.
 
 - [Installation](#installation)
 - [Getting started](#getting-started)
