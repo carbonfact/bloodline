@@ -1,7 +1,7 @@
 [project]
 name = "bloodline"
 version = "0.2.0"
-description = "🧛 Track row-level data lineage in tables"
+description = "🧛 Row-level data lineage tracking"
 readme = "README.md"
 authors = [
   {name = "Alexis Cruveiller", email = "alexis@carbonfact.com"},
