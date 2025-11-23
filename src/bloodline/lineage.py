@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import enum
 import functools
+import typing
 from collections.abc import Callable, Iterable, Mapping
-from typing import Any
 
 import pandas as pd
 from loguru import logger
@@ -56,33 +56,62 @@ class Lineage:
         self.verbosity = verbosity
         self.dataframe_protocol = DataFrameProtocol(dataframe_protocol)
 
-    def __call__(self, func: Callable | None = None, *, metadata: Mapping[str, Any] | None = None):
+    def __call__(
+        self,
+        func: Callable | None = None,
+        *,
+        metadata: Mapping[str, typing.Any] | None = None,
+        return_arg: typing.Hashable | None = None,
+    ):
         """Allow the instance itself to be used as ``@lineage``."""
-        decorator = self._build_decorator(source=self.default_source, base_metadata=metadata)
+        decorator = self._build_decorator(source=self.default_source, base_metadata=metadata, return_arg=return_arg)
         if func is None:
             return decorator
         return decorator(func)
 
-    def with_source(self, *, source: str | Source | SourceType, metadata: Mapping[str, Any] | None = None):
+    def with_source(
+        self,
+        *,
+        source: str | Source | SourceType,
+        metadata: Mapping[str, typing.Any] | None = None,
+        return_arg: typing.Hashable | None = None,
+    ):
         """Return a decorator bound to a specific ``source`` type/metadata."""
         override = self._coerce_source(source)
-        return self._build_decorator(source=override, base_metadata=metadata)
+        return self._build_decorator(source=override, base_metadata=metadata, return_arg=return_arg)
 
     # ------------------------------------------------------------------
 
-    def _build_decorator(self, source: Source, base_metadata: Mapping[str, Any] | None):
+    def _build_decorator(
+        self, source: Source, base_metadata: Mapping[str, typing.Any] | None, return_arg: typing.Hashable | None
+    ):
         """Combine metadata layers and produce the actual decorator."""
 
-        def decorator(func: Callable | None = None, *, metadata: Mapping[str, Any] | None = None):
-            combined_metadata = self._merge_metadata(base_metadata, metadata)
+        def decorator(
+            func: Callable | None = None,
+            *,
+            metadata: Mapping[str, typing.Any] | None = None,
+            return_arg: typing.Hashable | None = return_arg,
+        ):
+            combined_metadata = self._merge_metadata(base=base_metadata, override=metadata)
             effective_source = source if not combined_metadata else source.with_metadata(**combined_metadata)
             if func is None:
-                return lambda actual: self._wrap(actual, effective_source, combined_metadata)
-            return self._wrap(func, effective_source, combined_metadata)
+                return lambda actual: self._wrap(
+                    func=actual, default_source=effective_source, metadata=combined_metadata, return_arg=return_arg
+                )
+            return self._wrap(
+                func=func, default_source=effective_source, metadata=combined_metadata, return_arg=return_arg
+            )
 
         return decorator
 
-    def _wrap(self, func: Callable, default_source: Source, metadata: Mapping[str, Any] | None):
+    def _wrap(
+        self,
+        func: Callable,
+        default_source: Source,
+        metadata: Mapping[str, typing.Any] | None,
+        return_arg: typing.Hashable | None,
+    ) -> typing.Callable:
         """Install patches, run ``func``, and normalize return values."""
 
         @functools.wraps(func)
@@ -101,24 +130,40 @@ class Lineage:
             with patch[self.dataframe_protocol](), temporary_lineage_context(runtime_config):
                 result = func(*args, **kwargs)
 
-            if not isinstance(result, pd.DataFrame):
+            table = result[return_arg] if return_arg is not None else result
+            if not isinstance(table, pd.DataFrame):
                 logger.warning(
-                    f"Lineage decorator expected a pandas DataFrame from '{func.__name__}'; lineage was not updated.",
+                    f"Lineage decorator expected a dataframe from '{func.__name__}'; lineage was not updated.",
                 )
                 return result
 
-            return apply_data_lineage(result, default_source=default_source)
+            table_with_lineage = apply_data_lineage(table, default_source=default_source)
+            if return_arg is not None:
+                if isinstance(result, tuple):
+                    result_as_list = list(result)
+                    result_as_list[return_arg] = table_with_lineage  # type: ignore
+                    return tuple(result_as_list)
+                elif isinstance(result, dict):
+                    return {**result, return_arg: table_with_lineage}
+                else:
+                    logger.warning(
+                        f"Lineage decorator expected a tuple or dict when using 'return_arg' in '{func.__name__}'; "
+                        "lineage was not updated.",
+                    )
+                    return result
+            else:
+                return table_with_lineage
 
         return wrapper
 
     @staticmethod
     def _merge_metadata(
-        base: Mapping[str, Any] | None,
-        override: Mapping[str, Any] | None,
-    ) -> Mapping[str, Any] | None:
+        base: Mapping[str, typing.Any] | None,
+        override: Mapping[str, typing.Any] | None,
+    ) -> Mapping[str, typing.Any] | None:
         if not base and not override:
             return None
-        merged: dict[str, Any] = {}
+        merged: dict[str, typing.Any] = {}
         if base:
             merged.update(base)
         if override:
