@@ -42,6 +42,10 @@ select = [
 package = true
 default-groups = "all"
 
+[tool.uv.build-backend]
+module-name = "bloodline"
+module-root = ""
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
