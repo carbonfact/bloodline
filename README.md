@@ -1,4 +1,4 @@
-</h1>𝕭𝖑𝖔𝖔𝖉𝖑𝖎𝖓𝖊</h1>
+<h1>𝕭𝖑𝖔𝖔𝖉𝖑𝖎𝖓𝖊</h1>
 
 [![PyPI](https://img.shields.io/pypi/v/bloodline.svg)](https://pypi.org/project/bloodline/)
 [![Testing](https://github.com/carbonfact/bloodline/actions/workflows/test.yml/badge.svg)](https://github.com/carbonfact/bloodline/actions/workflows/test.yml)
@@ -30,7 +30,7 @@ For local development:
 
 ```sh
 git clone https://github.com/carbonfact/bloodline
-uv sync
+cd bloodline && uv sync
 uv run pytest
 ```
 
