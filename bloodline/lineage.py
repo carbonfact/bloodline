@@ -56,7 +56,7 @@ class Lineage:
         self.extra_sources_type = tuple(extra_sources_type or ())
         self.verbosity = verbosity
         self.dataframe_protocol = DataFrameProtocol(dataframe_protocol)
-        self.relationships = set()
+        self.erd = erd.EntityRelationshipDiagram()
 
     def __call__(
         self,
@@ -123,7 +123,7 @@ class Lineage:
         return decorator
 
     def _handle_detected_relationship(self, relationship: erd.Relationship) -> None:
-        self.relationships.add(relationship)
+        self.erd.add(relationship)
 
     def _wrap(
         self,

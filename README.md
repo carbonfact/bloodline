@@ -15,6 +15,7 @@ We use this at Carbonfact to track data lineage across all the ETL pipelines we 
   - [Using custom sources](#using-custom-sources)
   - [Inheriting lineage for derived columns](#inheriting-lineage-for-derived-columns)
   - [Manually updating lineage](#manually-updating-lineage)
+  - [Generate entity relationship diagrams](#generate-entity-relationship-diagrams)
   - [Toggling tracking on/off](#toggling-tracking-onoff)
 - [Roadmap](#roadmap)
 - [Contributing](#contributing)
@@ -229,6 +230,46 @@ The `@lineage` decorator should cover most use cases, but sometimes you may need
  'price': {'source_metadata': {'heuristic_name': 'mass_filler'},
            'source_type': 'HEURISTIC'}}
 
+```
+
+### Generate entity relationship diagrams
+
+Bloodline keeps track of each join between tables. You can generate E/R diagrams from the detected relationships. The relationship type is inferred from the unicity of the join keys.
+
+```py
+>>> import pandas as pd
+>>> import bloodline as bl
+
+>>> lineage = bl.Lineage()
+
+>>> @lineage
+... def load_products():
+...     return pd.read_csv("tests/examples/products.csv")
+
+>>> @lineage
+... def load_users():
+...     return pd.read_csv("tests/examples/users.csv")
+
+>>> @lineage
+... def load_purchases():
+...     purchases = pd.read_csv("tests/examples/purchases.csv")
+...     users = load_users()
+...     merged = pd.merge(left=purchases, right=users, left_on="user_id", right_on="id")
+...     products = load_products()
+...     merged = pd.merge(left=merged, right=products, on="sku")
+...     return merged
+
+>>> purchases = load_purchases()
+
+>>> with open("tests/examples/erd.mmd", "w") as f:
+...     f.write(lineage.erd.to_mermaid())
+
+```
+
+```mermaid
+erDiagram
+    "tests/examples/users.csv" ||--o{ "tests/examples/purchases.csv" : ""
+    "tests/examples/products.csv" ||--o{ "tests/examples/purchases.csv" : ""
 ```
 
 ### Toggling tracking on/off
