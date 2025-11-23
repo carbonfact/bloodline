@@ -1,21 +1,22 @@
-# 𝕭𝖑𝖔𝖔𝖉𝖑𝖎𝖓𝖊
+</h1>𝕭𝖑𝖔𝖔𝖉𝖑𝖎𝖓𝖊</h1>
 
 [![PyPI](https://img.shields.io/pypi/v/bloodline.svg)](https://pypi.org/project/bloodline/)
 [![Testing](https://github.com/carbonfact/bloodline/actions/workflows/test.yml/badge.svg)](https://github.com/carbonfact/bloodline/actions/workflows/test.yml)
 
 Bloodline is a small library to track *row-level* provenance of data. It is not invasive and does not require modifying your code. Bloodline supports [pandas](https://pandas.pydata.org/), but could to be extended to other dataframe libraries.
 
-- [𝕭𝖑𝖔𝖔𝖉𝖑𝖎𝖓𝖊](#𝕭𝖑𝖔𝖔𝖉𝖑𝖎𝖓𝖊)
-  - [Installation](#installation)
-  - [Getting started](#getting-started)
-  - [How it works](#how-it-works)
-  - [User guide](#user-guide)
-    - [n-ary return outputs](#n-ary-return-outputs)
-    - [Using custom sources](#using-custom-sources)
-    - [Inheriting lineage for derived columns](#inheriting-lineage-for-derived-columns)
-    - [Manually updating lineage](#manually-updating-lineage)
-    - [Toggling tracking on/off](#toggling-tracking-onoff)
-  - [Roadmap](#roadmap)
+We use this at Carbonfact to track data lineage across all the ETL pipelines we use to ingest our customers' data. This allows us to tell them where each data point they see comes from, and to keep track of data quality issues back to their source.
+
+- [Installation](#installation)
+- [Getting started](#getting-started)
+- [How it works](#how-it-works)
+- [User guide](#user-guide)
+  - [n-ary return outputs](#n-ary-return-outputs)
+  - [Using custom sources](#using-custom-sources)
+  - [Inheriting lineage for derived columns](#inheriting-lineage-for-derived-columns)
+  - [Manually updating lineage](#manually-updating-lineage)
+  - [Toggling tracking on/off](#toggling-tracking-onoff)
+- [Roadmap](#roadmap)
 
 ## Installation
 
