@@ -7,7 +7,6 @@ from .tracking import (
     disable_data_lineage_tracking,
     enable_data_lineage_tracking,
     is_data_lineage_tracked,
-    set_data_lineage_tracking,
     temporarily_disable_tracking,
 )
 
@@ -18,7 +17,6 @@ __all__ = [
     "data_lineage",
     "apply_data_lineage",
     "is_data_lineage_tracked",
-    "set_data_lineage_tracking",
     "enable_data_lineage_tracking",
     "disable_data_lineage_tracking",
     "temporarily_disable_tracking",

@@ -17,6 +17,8 @@ We use this at Carbonfact to track data lineage across all the ETL pipelines we 
   - [Manually updating lineage](#manually-updating-lineage)
   - [Toggling tracking on/off](#toggling-tracking-onoff)
 - [Roadmap](#roadmap)
+- [Contributing](#contributing)
+- [License](#license)
 
 ## Installation
 
@@ -231,10 +233,23 @@ The `@lineage` decorator should cover most use cases, but sometimes you may need
 
 ### Toggling tracking on/off
 
-Bloodline exposes `is_data_lineage_tracked()`, `enable_data_lineage_tracking()`, `disable_data_lineage_tracking()`, and `temporarily_disable_tracking()` (context manager) under `bloodline.tracking`. Use these around bulk operations where provenance isn’t needed.
+Bloodline exposes methods to control tracking at runtime:
+
+- `bl.disable_data_lineage_tracking()` ~ disable tracking globally.
+- `bl.enable_data_lineage_tracking()` ~ enable tracking globally.
+- `bl.is_data_lineage_tracked()` ~ check if tracking is enabled.
+- `bl.temporarily_disable_tracking()` ~ context manager to disable tracking temporarily.
 
 ## Roadmap
 
 - Bring more pandas operations under the hook manager (e.g., `DataFrame.fillna`, `DataFrame.where`, `DataFrame.assign`, `pd.melt`).
 - Flesh out the developer guide with real-world recipes as new hooks land.
 - Experiment with lightweight lineage visualizations once the API surface settles.
+
+## Contributing
+
+Feel free to reach out to [max@carbonfact.com](mailto:max@carbonfact.com) and [alexis@carbonfact.com](mailto:alexis@carbonfact.com) if you want to know more and/or contribute 😊
+
+## License
+
+Bloodline is free and open-source software licensed under the Apache License, Version 2.0.
