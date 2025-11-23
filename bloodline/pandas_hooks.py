@@ -2,20 +2,21 @@
 
 from __future__ import annotations
 
+import typing
 from collections.abc import Callable
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any
 
 import pandas as pd
 
+from . import erd
 from .apply import apply_data_lineage
 from .constants import DATA_LINEAGE_COLUMN
 from .context import get_lineage_context
 from .source import Source
 from .tracking import is_data_lineage_tracked
 
-OriginalFunction = Callable[..., Any]
+OriginalFunction = Callable[..., typing.Any]
 
 
 def fuse_data_lineage_columns(df: pd.DataFrame) -> pd.DataFrame:
@@ -48,9 +49,9 @@ class PandasHookManager:
         self._original_merge: OriginalFunction | None = None
         self._original_join: OriginalFunction | None = None
 
-    def install(self) -> None:
+    def install(self, detected_relationship_hook: Callable[[erd.Relationship], None]) -> None:
         if self._stack_depth == 0:
-            self._patch()
+            self._patch(detected_relationship_hook=detected_relationship_hook)
         self._stack_depth += 1
 
     def uninstall(self) -> None:
@@ -60,7 +61,7 @@ class PandasHookManager:
         if self._stack_depth == 0:
             self._restore()
 
-    def _patch(self) -> None:
+    def _patch(self, detected_relationship_hook: Callable[[erd.Relationship], None]) -> None:
         self._original_read_csv = pd.read_csv
         self._original_read_excel = pd.read_excel
         self._original_merge = pd.merge
@@ -78,6 +79,15 @@ class PandasHookManager:
             inheritance = kwargs.pop("_lineage_inheritance", None)
             merged = self._original_merge(left, right, *args, **kwargs)
             merged = fuse_data_lineage_columns(merged)
+
+            for relationship in _generate_relationships_between_tables(
+                left=left,
+                left_on=kwargs.get("left_on") or kwargs.get("on") or (args[2] if len(args) > 2 else None),
+                right=right,
+                right_on=kwargs.get("right_on") or kwargs.get("on") or (args[3] if len(args) > 3 else None),
+            ):
+                detected_relationship_hook(relationship)
+
             return apply_data_lineage(
                 merged,
                 default_source=_active_default_source(),
@@ -88,6 +98,15 @@ class PandasHookManager:
             inheritance = kwargs.pop("_lineage_inheritance", None)
             joined = self._original_join(self_df, other, *args, **kwargs)
             joined = fuse_data_lineage_columns(joined)
+
+            for relationship in _generate_relationships_between_tables(
+                left=self_df,
+                left_on=kwargs.get("on") or (args[0] if len(args) > 0 else None),
+                right=other,
+                right_on=kwargs.get("right_on") or kwargs.get("on") or (args[1] if len(args) > 1 else None),
+            ):
+                detected_relationship_hook(relationship)
+
             return apply_data_lineage(
                 joined,
                 default_source=_active_default_source(),
@@ -112,7 +131,7 @@ class PandasHookManager:
             pd.DataFrame.join = self._original_join  # type: ignore
 
     @staticmethod
-    def _tag_data_source(df: pd.DataFrame, args: tuple[Any, ...], kwargs: dict[str, Any]):
+    def _tag_data_source(df: pd.DataFrame, args: tuple[typing.Any, ...], kwargs: dict[str, typing.Any]):
         if not is_data_lineage_tracked():
             return df
 
@@ -121,7 +140,8 @@ class PandasHookManager:
         return apply_data_lineage(df, default_source=source)
 
     @staticmethod
-    def _extract_path(args: tuple[Any, ...], kwargs: dict[str, Any]):
+    def _extract_path(args: tuple[typing.Any, ...], kwargs: dict[str, typing.Any]):
+        # TODO: handle Excel sheet name
         if args:
             candidate = args[0]
         else:
@@ -135,8 +155,8 @@ HOOK_MANAGER = PandasHookManager()
 
 
 @contextmanager
-def pandas_lineage_patched():
-    HOOK_MANAGER.install()
+def pandas_lineage_patched(detected_relationship_hook: Callable[[erd.Relationship], None]):
+    HOOK_MANAGER.install(detected_relationship_hook=detected_relationship_hook)
     try:
         yield
     finally:
@@ -145,4 +165,38 @@ def pandas_lineage_patched():
 
 def _active_default_source() -> Source:
     ctx = get_lineage_context()
-    return ctx.default_source if ctx else Source.hard_coded()
+    return ctx.default_source if ctx else Source.unknown()
+
+
+def _list_tables_in_data_lineage(table: pd.DataFrame, join_key: str) -> list[str]:
+    if DATA_LINEAGE_COLUMN not in table.columns:
+        return []
+    return table[DATA_LINEAGE_COLUMN].str[join_key].str["source_metadata"].str["file_path"].unique().tolist()  # type: ignore
+
+
+def _generate_relationships_between_tables(
+    left: pd.DataFrame,
+    left_on: str,
+    right: pd.DataFrame,
+    right_on: str,
+) -> typing.Generator[erd.Relationship]:
+    for left_table in _list_tables_in_data_lineage(table=left, join_key=left_on):
+        for right_table in _list_tables_in_data_lineage(table=right, join_key=right_on):
+            # TODO: is this ok in terms of performance?
+            is_left_unique = left.duplicated(subset=[left_on]).sum() == 0
+            is_right_unique = right.duplicated(subset=[right_on]).sum() == 0
+            if is_left_unique and is_right_unique:
+                relationship_type = erd.RelationshipType.ONE_TO_ONE
+            elif is_left_unique and not is_right_unique:
+                relationship_type = erd.RelationshipType.ONE_TO_MANY
+            elif not is_left_unique and is_right_unique:
+                relationship_type = erd.RelationshipType.MANY_TO_ONE
+            else:
+                relationship_type = erd.RelationshipType.MANY_TO_MANY
+            yield erd.Relationship(
+                left_name=left_table,
+                left_key=left_on,
+                right_name=right_table,
+                right_key=right_on,
+                relationship_type=relationship_type,
+            )

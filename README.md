@@ -1,108 +1,296 @@
-# Bloodline
+<h1>𝕭𝖑𝖔𝖔𝖉𝖑𝖎𝖓𝖊</h1>
 
-![alt text](image.png)
+[![PyPI](https://img.shields.io/pypi/v/bloodline.svg)](https://pypi.org/project/bloodline/)
+[![Testing](https://github.com/carbonfact/bloodline/actions/workflows/test.yml/badge.svg)](https://github.com/carbonfact/bloodline/actions/workflows/test.yml)
 
-![PyPI version](https://img.shields.io/pypi/v/bloodline.svg)
+Bloodline is a small library to track *row-level* provenance of data. It is not invasive and does not require modifying your code. Bloodline supports [pandas](https://pandas.pydata.org/), but could to be extended to other dataframe libraries.
 
-Bloodline is a tiny helper library that lets you track *row-level* provenance for pandas dataframes without rewriting your business logic. Decorate a function, keep calling `pd.read_csv` / `pd.merge` / `pd.DataFrame.join` as usual, and Bloodline injects a `data_lineage` column that records—per row and per column—where values came from.
+We use this at Carbonfact to track data lineage across all the ETL pipelines we use to ingest our customers' data. This allows us to tell them where each data point they see comes from, and to keep track of data quality issues back to their source.
 
-## Install
+- [Installation](#installation)
+- [Getting started](#getting-started)
+- [How it works](#how-it-works)
+- [User guide](#user-guide)
+  - [n-ary return outputs](#n-ary-return-outputs)
+  - [Using custom sources](#using-custom-sources)
+  - [Inheriting lineage for derived columns](#inheriting-lineage-for-derived-columns)
+  - [Manually updating lineage](#manually-updating-lineage)
+  - [Generate entity relationship diagrams](#generate-entity-relationship-diagrams)
+  - [Toggling tracking on/off](#toggling-tracking-onoff)
+- [Roadmap](#roadmap)
+- [Contributing](#contributing)
+- [License](#license)
 
-```bash
-pip install bloodline  # or uv pip install bloodline
+## Installation
+
+```sh
+pip install bloodline
 ```
 
 For local development:
 
-```bash
-uv sync              # create the virtual env declared in pyproject.toml
-uv run pytest        # run the unit suite
+```sh
+git clone https://github.com/carbonfact/bloodline
+cd bloodline && uv sync
+uv run pytest
 ```
 
-## Core concepts
+## Getting started
 
-- **Source types** – the OSS build ships two canonical types: `SourceType.DATA_SOURCE` (data you read) and `SourceType.HARD_CODED` (values you derive). You can still create ad-hoc string-based sources via `Lineage.with_source`.
-- **`data_lineage` column** – every dataframe touched by Bloodline carries a dict per row: `{column_name: {"source_type": ..., "source_metadata": {...}}}`.
-- **Scoped pandas hooks** – Bloodline temporarily patches `pd.read_csv`, `pd.read_excel`, `pd.merge`, and `DataFrame.join` while a decorated function executes. Outside that scope, pandas behaves exactly as normal. This part is probably what brings the most value.
+Bloodline provides a `Lineage` object, which you use as a decorator. Here’s a minimal example:
 
-### Why context-scoped hooks?
+```py
+>>> import bloodline as bl
+>>> import pandas as pd
 
-We tried dataframe accessors and global monkeypatches. We want something better, that could work without updating your current code but still give you control
+>>> lineage = bl.Lineage()
 
-Context-scoped hooks hit the sweet spot:
+>>> @lineage
+... def read_products():
+...     return pd.read_csv('tests/examples/products.csv')
 
-1. Hooks exist only while a decorated function runs, so pandas behaves normally everywhere else.
-2. IO helpers automatically tag provenance (file paths for `pd.read_csv` and `pd.read_excel`) without asking users to do anything special.
-3. Nested decorators cooperate because each scope manages its own patches; the innermost decorator always sets the active default source.
+>>> products = read_products()
 
-If you need Bloodline to disappear altogether, call `disable_data_lineage_tracking()`.
+```
 
-## Quick start
+The dataframe `products` now has a `data_lineage` column, which records the source of each column’s values:
+
+```py
+>>> from pprint import pprint
+>>> pprint(products["data_lineage"].iloc[0])
+{'mass': {'source_metadata': {'file_path': 'tests/examples/products.csv'},
+          'source_type': 'DATA_SOURCE'},
+ 'price': {'source_metadata': {'file_path': 'tests/examples/products.csv'},
+           'source_type': 'DATA_SOURCE'},
+ 'sku': {'source_metadata': {'file_path': 'tests/examples/products.csv'},
+         'source_type': 'DATA_SOURCE'}}
+
+```
+
+What's nice is that you don't have to change anything about how you use pandas. You just need to decorate your data-processing functions with `@lineage`. Bloodline takes care of the rest.
+
+Bloodline's default behavior is to impute a default source for new columns:
+
+```py
+>>> @lineage
+... def calculate_mass_in_kg(products):
+...     products["mass_kg"] = products["mass"] / 1000
+...     return products
+
+>>> products = calculate_mass_in_kg(products)
+>>> pprint(products['data_lineage'].iloc[0])
+{'mass': {'source_metadata': {'file_path': 'tests/examples/products.csv'},
+          'source_type': 'DATA_SOURCE'},
+ 'mass_kg': {'source_metadata': {}, 'source_type': 'UNKNOWN'},
+ 'price': {'source_metadata': {'file_path': 'tests/examples/products.csv'},
+           'source_type': 'DATA_SOURCE'},
+ 'sku': {'source_metadata': {'file_path': 'tests/examples/products.csv'},
+         'source_type': 'DATA_SOURCE'}}
+
+```
+
+Bloodline automatically merges `data_lineage` columns when you merge dataframes.
+
+```py
+>>> @lineage
+... def read_purchases():
+...     purchases = pd.read_csv("tests/examples/purchases.csv")
+...     purchases = pd.merge(purchases, products, on="sku", how="left")
+...     users = pd.read_csv("tests/examples/users.csv")
+...     purchases = pd.merge(purchases, users, left_on="user_id", right_on="id", how="left")
+...     return purchases
+
+>>> purchases = read_purchases()
+>>> for col in purchases.columns.difference(['data_lineage']):
+...     print(f"{col}: {purchases['data_lineage'].iloc[0][col]}")
+date: {'source_type': 'DATA_SOURCE', 'source_metadata': {'file_path': 'tests/examples/purchases.csv'}}
+id: {'source_type': 'DATA_SOURCE', 'source_metadata': {'file_path': 'tests/examples/users.csv'}}
+mass: {'source_type': 'DATA_SOURCE', 'source_metadata': {'file_path': 'tests/examples/products.csv'}}
+mass_kg: {'source_type': 'UNKNOWN', 'source_metadata': {}}
+price: {'source_type': 'DATA_SOURCE', 'source_metadata': {'file_path': 'tests/examples/products.csv'}}
+sku: {'source_type': 'DATA_SOURCE', 'source_metadata': {'file_path': 'tests/examples/products.csv'}}
+user_id: {'source_type': 'DATA_SOURCE', 'source_metadata': {'file_path': 'tests/examples/purchases.csv'}}
+
+```
+
+## How it works
+
+Here's what happens under the hood at a high level:
+
+1. The `@lineage` decorator enters a context manager, which temporarily installs lineage-aware pandas hooks.
+2. Reader functions like `pd.read_csv` populate the dataframe with a `data_lineage` column, tagging each column with its source (e.g., file path)
+3. Join methods like `pd.merge` and `DataFrame.join` fuse `data_lineage` together, preserving provenance across dataframes.
+4. When the function returns, Bloodline's decorator imputes lineage for any new columns using the decorator's default source.
+
+What's crucial is that **data lineage is tracked at a row level**. If you concatenate two dataframes, each row in the resulting dataframe retains its own provenance. This differs from column-level lineage tracking, which can lose granularity when rows originate from different sources.
+
+The advantages of Bloodline's design are:
+
+- Users write normal pandas code. They don't have to swap `pd.merge` for a custom accessor.
+- The `@lineage` decorator overrides pandas' methods temporarily, which avoids global side effects.
+- Returning from the decorator triggers a final `apply_data_lineage` pass, ensuring each data point has lineage.
+
+Here are the caveats:
+
+- Not all pandas operations are necessarily covered, which can lead to missed lineage.
+- Performance overhead can be significant for large dataframes due to the need to inspect data at a row level.
+
+## User guide
+
+### n-ary return outputs
+
+The `@lineage` decorator assumes by default that the decorated function returns a single dataframe. This can be customized with the `return_arg` parameter:
 
 ```python
-import pandas as pd
-import bloodline as bl
+>>> @lineage(return_arg=0)
+... def read_data():
+...     return pd.DataFrame({'foo': [1, 2]}), 'bar'
 
-lineage = bl.Lineage(
-    default_source=bl.Source.hard_coded(reason="default"),
-    extra_sources_type=("HEURISTIC", "RULE"),
-)
+>>> df, label = read_data()
+>>> assert 'data_lineage' in df.columns
 
-@lineage
-def enrich_products(products_path, suppliers_path):
-    products = pd.read_csv(products_path)
-    suppliers = pd.read_csv(suppliers_path)
-    merged = pd.merge(products, suppliers, on="product_id", how="left")
-    return merged
-
-
-result = enrich_products("products.csv", "suppliers.csv")
-print(result["data_lineage"].iloc[0])
 ```
 
-What happens under the hood:
+### Using custom sources
 
-1. `@lineage` enters a context manager, installing lineage-aware pandas hooks.
-2. `pd.read_csv` records `{"source_type": "DATA_SOURCE", "source_metadata": {"file_path": ...}}` automatically.
-3. `pd.merge` (and `DataFrame.join`) fuse any existing `data_lineage` columns, so you never end up with `_x/_y` suffixes.
-4. When the function returns, Bloodline imputes lineage for any new columns using the decorator’s default source.
+The default source can be overriden when instantiating the `Lineage` object:
 
-> ⚠️ If the wrapped function doesn’t return a single dataframe, Bloodline logs a warning (via `loguru`) and skips lineage updates.
+```py
+>>> lineage = bl.Lineage(
+...     default_source=bl.Source(
+...         source_type="CUSTOM_DEFAULT",
+...         source_metadata={"reason": "default for new columns"}
+...     )
+... )
 
-## Manual adjustments
-
-Because we do not cover all pandas operations yet, we enable manual adjustments. Here’s an example of our product-mass rule we use at Carbonfact: only the selected SKUs change, and we force their lineage to `HEURISTIC` while leaving the rest untouched.
-
-```python
-from bloodline.apply import apply_data_lineage
-from bloodline.source import Source
-
-mask = df["sku"].isin(selected_skus)
-df.loc[mask, "sku_mass"] = override_value
-
-df = apply_data_lineage(
-    table=df,
-    default_source=Source(source_type="HEURISTIC", source_metadata={"heuristic_name": "mass_filler"}),
-    row_mask=mask,
-    column_names=["sku_mass"],
-    override=True,
-)
 ```
 
-> ℹ️ Add `inheritance={"child_column": "parent_column"}` when calculating derived columns and Bloodline will copy the parent’s lineage automatically. Empty cells are ignored so the `data_lineage` dict stays lean.
+You can also specify custom sources when using the decorator:
 
-## Toggling tracking
+```py
+>>> @lineage.with_source(
+...     source=bl.Source(
+...         source_type="SNOWFLAKE"
+...     )
+... )
+... def read_data_from_db():
+...     df = pd.DataFrame({'price': [10, 15]})  # simulate reading from a database
+...     return df
 
-Bloodline exposes `is_data_lineage_tracked()`, `enable_data_lineage_tracking()`, `disable_data_lineage_tracking()`, and `temporarily_disable_tracking()` (context manager) under `bloodline.tracking`. Use these around bulk operations where provenance isn’t needed.
+>>> df = read_data_from_db()
+>>> pprint(df['data_lineage'].iloc[0])
+{'price': {'source_metadata': {}, 'source_type': 'SNOWFLAKE'}}
 
-## Design recap
+```
 
-- Users write normal pandas code. They shouldn’t swap `pd.merge` for a custom accessor.
-- The `Lineage` decorator installs temporary hooks on pandas APIs (currently `read_csv`, `read_excel`, `merge`, `DataFrame.join`). Hooks must be context-scoped so that `pd` behaves normally elsewhere.
-- Returning from the decorator triggers a final `apply_data_lineage` pass, which fills any gaps column-by-column.
+### Inheriting lineage for derived columns
 
-## Next steps
+When creating new columns derived from existing ones, you can instruct Bloodline to inherit lineage from parent columns:
 
-- Bring more pandas operations under the hook manager (prime candidates: `fillna`, `where`, `DataFrame.assign`).
+```py
+>>> @lineage(
+...    inheritance={"discounted_price": "price"}
+... )
+... def add_discounted_price(df: pd.DataFrame) -> pd.DataFrame:
+...     df["discounted_price"] = df["price"] * 0.9
+...     df["foo"] = 42  # this column won't inherit lineage
+...     return df
+
+>>> products = add_discounted_price(df)
+>>> pprint(df['data_lineage'].iloc[0])
+{'discounted_price': {'source_metadata': {}, 'source_type': 'SNOWFLAKE'},
+ 'foo': {'source_metadata': {'reason': 'default for new columns'},
+         'source_type': 'CUSTOM_DEFAULT'},
+ 'price': {'source_metadata': {}, 'source_type': 'SNOWFLAKE'}}
+
+```
+
+### Manually updating lineage
+
+The `@lineage` decorator should cover most use cases, but sometimes you may need to manually adjust lineage information. This is where `bl.apply_data_lineage()` comes in handy. For example, you maybe want to update the lineage for a specific table subset after a bulk operation:
+
+```py
+>>> def clip_price(df: pd.DataFrame) -> pd.DataFrame:
+...     threshold = 10
+...     row_mask = df["price"] > threshold
+...     df.loc[row_mask, "price"] = threshold
+...     return bl.apply_data_lineage(
+...         table=df,
+...         default_source=bl.Source(source_type="HEURISTIC", source_metadata={"heuristic_name": "mass_filler"}),
+...         row_mask=row_mask,
+...         column_names=["price"],
+...         override=True,
+...     )
+
+>>> df = clip_price(df)
+>>> pprint(df['data_lineage'].iloc[1])
+{'discounted_price': {'source_metadata': {}, 'source_type': 'SNOWFLAKE'},
+ 'foo': {'source_metadata': {'reason': 'default for new columns'},
+         'source_type': 'CUSTOM_DEFAULT'},
+ 'price': {'source_metadata': {'heuristic_name': 'mass_filler'},
+           'source_type': 'HEURISTIC'}}
+
+```
+
+### Generate entity relationship diagrams
+
+Bloodline keeps track of each join between tables. You can generate E/R diagrams from the detected relationships. The relationship type is inferred from the unicity of the join keys.
+
+```py
+>>> import pandas as pd
+>>> import bloodline as bl
+
+>>> lineage = bl.Lineage()
+
+>>> @lineage
+... def load_products():
+...     return pd.read_csv("tests/examples/products.csv")
+
+>>> @lineage
+... def load_users():
+...     return pd.read_csv("tests/examples/users.csv")
+
+>>> @lineage
+... def load_purchases():
+...     purchases = pd.read_csv("tests/examples/purchases.csv")
+...     users = load_users()
+...     merged = pd.merge(left=purchases, right=users, left_on="user_id", right_on="id")
+...     products = load_products()
+...     merged = pd.merge(left=merged, right=products, on="sku")
+...     return merged
+
+>>> purchases = load_purchases()
+
+>>> with open("tests/examples/erd.mmd", "w") as f:
+...     _ = f.write(lineage.erd.to_mermaid())
+
+```
+
+```mermaid
+erDiagram
+    "tests/examples/users.csv" ||--o{ "tests/examples/purchases.csv" : "id -> user_id"
+    "tests/examples/products.csv" ||--o{ "tests/examples/purchases.csv" : "sku -> sku"
+```
+
+### Toggling tracking on/off
+
+Bloodline exposes methods to control tracking at runtime:
+
+- `bl.disable_data_lineage_tracking()` ~ disable tracking globally.
+- `bl.enable_data_lineage_tracking()` ~ enable tracking globally.
+- `bl.is_data_lineage_tracked()` ~ check if tracking is enabled.
+- `bl.temporarily_disable_tracking()` ~ context manager to disable tracking temporarily.
+
+## Roadmap
+
+- Bring more pandas operations under the hook manager (e.g., `DataFrame.fillna`, `DataFrame.where`, `DataFrame.assign`, `pd.melt`).
 - Flesh out the developer guide with real-world recipes as new hooks land.
 - Experiment with lightweight lineage visualizations once the API surface settles.
+
+## Contributing
+
+Feel free to reach out to [alexis@carbonfact.com](mailto:alexis@carbonfact.com) and [max@carbonfact.com](mailto:max@carbonfact.com) if you want to know more and/or contribute 😊
+
+## License
+
+Bloodline is free and open-source software licensed under the Apache License, Version 2.0.

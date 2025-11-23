@@ -4,6 +4,13 @@ from bloodline.constants import DATA_LINEAGE_COLUMN
 from bloodline.pandas_hooks import pandas_lineage_patched
 
 
+def no_op(*args, **kwargs):
+    pass
+
+
+HANDLE_RELATIONSHIP_NO_OP = no_op
+
+
 def test_read_csv_tags_data_source(tmp_path):
     csv_path = tmp_path / "data.csv"
     rows = [
@@ -15,7 +22,7 @@ def test_read_csv_tags_data_source(tmp_path):
         for row in rows:
             handle.write(f"{row['id']},{row['value']}\n")
 
-    with pandas_lineage_patched():
+    with pandas_lineage_patched(HANDLE_RELATIONSHIP_NO_OP):
         df = pd.read_csv(csv_path)
 
     assert DATA_LINEAGE_COLUMN in df.columns
@@ -43,7 +50,7 @@ def test_merge_fuses_lineage_columns(tmp_path):
         }
     )
 
-    with pandas_lineage_patched():
+    with pandas_lineage_patched(HANDLE_RELATIONSHIP_NO_OP):
         merged = pd.merge(left, right, on="id")
 
     assert set(merged.columns) == {"id", "value", "extra", DATA_LINEAGE_COLUMN}

@@ -13,7 +13,7 @@ def build_df() -> pd.DataFrame:
 
 def test_apply_sets_default_source_when_missing():
     df = build_df()
-    updated = apply_data_lineage(df, default_source=Source.hard_coded(origin="test"))
+    updated = apply_data_lineage(df, default_source=Source.unknown(origin="test"))
     assert updated.loc[1, "data_lineage"]["value"]["source_metadata"] == {"origin": "test"}
 
 
@@ -41,7 +41,7 @@ def test_disabled_tracking_initializes_empty_dicts():
     df = pd.DataFrame({"id": [1, 2]})
     disable_data_lineage_tracking()
     try:
-        updated = apply_data_lineage(df, default_source=Source.hard_coded())
+        updated = apply_data_lineage(df, default_source=Source.unknown())
         assert "data_lineage" not in updated.columns
     finally:
         enable_data_lineage_tracking()
@@ -57,7 +57,7 @@ def test_override_replaces_existing_lineage():
     )
     updated = apply_data_lineage(
         df,
-        default_source=Source.hard_coded(reason="override"),
+        default_source=Source.unknown(reason="override"),
         column_names=["value"],
         override=True,
     )

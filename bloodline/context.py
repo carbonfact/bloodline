@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
@@ -21,7 +22,7 @@ __all__ = [
 @dataclass(frozen=True)
 class LineageRuntimeConfig:
     default_source: Source
-    metadata: dict[str, Any] | None = None
+    metadata: Mapping[str, Any] | None = None
     extra_sources_type: tuple[str, ...] = ()
     verbosity: bool = False
 

@@ -1,7 +1,7 @@
 [project]
 name = "bloodline"
-version = "0.1.0"
-description = "Bloodline is a python package used for row-level data lineage"
+version = "0.2.0"
+description = "🧛 Row-level data lineage tracking"
 readme = "README.md"
 authors = [
   {name = "Alexis Cruveiller", email = "alexis@carbonfact.com"},
@@ -42,6 +42,10 @@ select = [
 package = true
 default-groups = "all"
 
+[tool.uv.build-backend]
+module-name = "bloodline"
+module-root = ""
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
@@ -52,6 +56,7 @@ addopts = [
     "--tb=short",
     "--strict-markers",
     "--disable-warnings",
+    "--doctest-glob=*.md",
 ]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
