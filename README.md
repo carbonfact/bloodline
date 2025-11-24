@@ -1,4 +1,4 @@
-<h1>𝕭𝖑𝖔𝖔𝖉𝖑𝖎𝖓𝖊</h1>
+<h1>🧛 𝕭𝖑𝖔𝖔𝖉𝖑𝖎𝖓𝖊</h1>
 
 <img src="https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExc2VvOG54ZDR0d3lqaDE1dm8wMTR5dWZxbWViazZrYjUwdTFteW5tcSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/26tn0L2jz3artlckM/giphy.gif" width="33%" align="right" />
 
@@ -19,9 +19,9 @@
 </a>
 </p>
 
-Bloodline is a small library to track *row-level* provenance of data. It is not invasive and does not require modifying your code. Bloodline supports [pandas](https://pandas.pydata.org/), but could to be extended to other dataframe libraries.
+Bloodline is a small library to track *row-level* data lineage. It is not invasive and does not require modifying your code. Bloodline supports [pandas](https://pandas.pydata.org/), but could to be extended to other dataframe libraries.
 
-We use Bloodline at [Carbonfact](https://www.carbonfact.com/) to track data lineage across the ETL pipelines that ingest our customers' scattered data. This allows us to tell them where each data point we present to them comes from, as well as measuring data quality metrics.
+We use Bloodline at [Carbonfact](https://www.carbonfact.com/) to manage data lineage across ETL pipelines which ingest our customers' heterogeneous data. This allows them to view where each data point we present to them comes from, as well as measuring data quality metrics.
 
 - [Installation](#installation)
 - [Getting started](#getting-started)
@@ -48,6 +48,12 @@ For local development:
 ```sh
 git clone https://github.com/carbonfact/bloodline
 cd bloodline && uv sync
+
+# Check code quality
+pre-commit install --hook-type pre-push
+pre-commit run --all-files
+
+# Run tests
 uv run pytest
 ```
 
@@ -206,7 +212,7 @@ When creating new columns derived from existing ones, you can instruct Bloodline
 
 ```py
 >>> @lineage(
-...    inheritance={"discounted_price": "price"}
+...     inheritance={"discounted_price": "price"}
 ... )
 ... def add_discounted_price(df: pd.DataFrame) -> pd.DataFrame:
 ...     df["discounted_price"] = df["price"] * 0.9
@@ -233,7 +239,10 @@ The `@lineage` decorator should cover most use cases, but sometimes you may need
 ...     df.loc[row_mask, "price"] = threshold
 ...     return bl.apply_data_lineage(
 ...         table=df,
-...         default_source=bl.Source(source_type="HEURISTIC", source_metadata={"heuristic_name": "mass_filler"}),
+...         default_source=bl.Source(
+...             source_type="HEURISTIC",
+...             source_metadata={"heuristic_name": "mass_filler"}
+...         ),
 ...         row_mask=row_mask,
 ...         column_names=["price"],
 ...         override=True,
@@ -300,9 +309,12 @@ Bloodline exposes methods to control tracking at runtime:
 
 ## Roadmap
 
-- Bring more pandas operations under the hook manager (e.g., `DataFrame.fillna`, `DataFrame.where`, `DataFrame.assign`, `pd.melt`).
-- Flesh out the developer guide with real-world recipes as new hooks land.
-- Experiment with lightweight lineage visualizations once the API surface settles.
+- Bring more pandas operations under the hook manager -- e.g. `DataFrame.fillna`, `DataFrame.where`, `DataFrame.assign`, `pd.melt`, `DataFrame.loc`, `DataFrame.rename`
+- Flesh out the developer guide with real-world recipes as new hooks land
+- Experiment with lightweight lineage visualizations once the API surface settles
+- Allow tracking the whole lifecycle of each data point, not just its source
+- Support other dataframe libraries like [Polars](https://www.pola.rs/)
+- Support more efficient data lineage storage backends for large datasets
 
 ## Contributing
 

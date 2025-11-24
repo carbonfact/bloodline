@@ -83,7 +83,7 @@ def test_tuple_return_with_source():
     heuristic = lineage.with_source(source="HEURISTIC", metadata={"heuristic_name": "mass_filler"})
 
     @heuristic(return_arg=0)
-    def fill(df: pd.DataFrame) -> pd.DataFrame:
+    def fill(df: pd.DataFrame) -> tuple[pd.DataFrame, str]:
         df = df.copy()
         df["mass"] = 2
         return df, "foo"

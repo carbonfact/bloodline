@@ -16,7 +16,7 @@ from .context import LineageRuntimeConfig, temporary_lineage_context
 from .pandas_hooks import pandas_lineage_patched
 from .source import Source, SourceType
 
-__all__ = ["Lineage", "data_lineage"]
+__all__ = ["Lineage"]
 
 Decorator = Callable[[Callable[..., pd.DataFrame]], Callable[..., pd.DataFrame]]
 
@@ -203,8 +203,3 @@ class Lineage:
         if isinstance(source, SourceType):
             return Source(source_type=source)
         return Source(source_type=str(source))
-
-
-def data_lineage(*args, **kwargs) -> Lineage:
-    """Compatibility helper mirroring Vera's decorator naming."""
-    return Lineage(*args, **kwargs)
