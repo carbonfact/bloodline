@@ -1,4 +1,4 @@
-<h1>🧛 𝕭𝖑𝖔𝖔𝖉𝖑𝖎𝖓𝖊</h1>
+<h1>𝕭𝖑𝖔𝖔𝖉𝖑𝖎𝖓𝖊</h1>
 
 <img src="https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExc2VvOG54ZDR0d3lqaDE1dm8wMTR5dWZxbWViazZrYjUwdTFteW5tcSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/26tn0L2jz3artlckM/giphy.gif" width="33%" align="right" />
 
