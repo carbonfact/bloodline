@@ -1,6 +1,7 @@
 import pandas as pd
 
 import bloodline as bl
+from bloodline import erd
 
 
 class TestIntegrationWorkflow:
@@ -153,4 +154,4 @@ class TestIntegrationWorkflow:
         assert relationship.left_key == "customer_id"
         assert relationship.right_name == "orders"
         assert relationship.right_key == "customer_id"
-        assert relationship.relationship_type == bl.erd.RelationshipType.ONE_TO_MANY
+        assert relationship.relationship_type == erd.RelationshipType.ONE_TO_MANY
