@@ -75,3 +75,82 @@ class TestIntegrationWorkflow:
         lineage_entry = df.loc[0, "data_lineage"]["sku"]
         assert lineage_entry["source_type"] == bl.SourceType.DATA_SOURCE.value
         assert str(csv_path) in lineage_entry["source_metadata"]["file_path"]
+
+    def test_join_on_single_key_tracks_lineage(self):
+        """Test that joining two tables on a single key properly tracks data lineage."""
+        lineage = bl.Lineage()
+
+        # Create decorators for different sources
+        database_source = lineage.with_source(
+            source="DATABASE", metadata={"table": "customers", "file_path": "customers"}
+        )
+        api_source = lineage.with_source(source="API", metadata={"endpoint": "/orders", "file_path": "orders"})
+
+        @database_source
+        def load_customers() -> pd.DataFrame:
+            return pd.DataFrame(
+                {
+                    "customer_id": [1, 2, 3],
+                    "name": ["Alice", "Bob", "Charlie"],
+                    "city": ["NYC", "LA", "SF"],
+                }
+            )
+
+        @api_source
+        def load_orders() -> pd.DataFrame:
+            return pd.DataFrame(
+                {
+                    "customer_id": [1, 2, 2, 3],
+                    "order_id": [101, 102, 103, 104],
+                    "amount": [250.0, 150.0, 300.0, 75.0],
+                }
+            )
+
+        @lineage
+        def join_tables(customers: pd.DataFrame, orders: pd.DataFrame) -> pd.DataFrame:
+            return pd.merge(customers, orders, on="customer_id", how="inner")
+
+        # Load tables separately with different sources
+        customers = load_customers()
+        orders = load_orders()
+
+        # Perform the join
+        result = join_tables(customers, orders)
+
+        # Verify the join worked correctly
+        assert len(result) == 4
+        assert list(result.columns) == ["customer_id", "name", "city", "order_id", "amount", "data_lineage"]
+
+        # Verify data lineage column exists
+        assert "data_lineage" in result.columns
+
+        # Check that lineage is tracked for all columns
+        first_row_lineage = result.iloc[0]["data_lineage"]
+        assert "customer_id" in first_row_lineage
+        assert "name" in first_row_lineage
+        assert "city" in first_row_lineage
+        assert "order_id" in first_row_lineage
+        assert "amount" in first_row_lineage
+
+        # Verify that customer columns came from the DATABASE source
+        assert first_row_lineage["name"]["source_type"] == "DATABASE"
+        assert first_row_lineage["name"]["source_metadata"]["table"] == "customers"
+        assert first_row_lineage["city"]["source_type"] == "DATABASE"
+
+        # Verify that order columns came from the API source
+        assert first_row_lineage["order_id"]["source_type"] == "API"
+        assert first_row_lineage["order_id"]["source_metadata"]["endpoint"] == "/orders"
+        assert first_row_lineage["amount"]["source_type"] == "API"
+
+        # Verify the join key tracks lineage from one of the sources (either is valid)
+        customer_id_lineage = first_row_lineage["customer_id"]
+        assert customer_id_lineage["source_type"] in ["DATABASE", "API"]
+
+        # Verify the relationship has been picked up
+        assert len(lineage.erd.relationships) == 1
+        relationship = list(lineage.erd.relationships)[0]
+        assert relationship.left_name == "customers"
+        assert relationship.left_key == "customer_id"
+        assert relationship.right_name == "orders"
+        assert relationship.right_key == "customer_id"
+        assert relationship.relationship_type == bl.erd.RelationshipType.ONE_TO_MANY

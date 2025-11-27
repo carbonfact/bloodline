@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import itertools
 import typing
 from collections.abc import Callable
 from contextlib import contextmanager
 from pathlib import Path
 
 import pandas as pd
+from loguru import logger
 
 from . import erd
 from .apply import apply_data_lineage
@@ -68,25 +70,33 @@ class PandasHookManager:
         self._original_join = pd.DataFrame.join
 
         def wrapped_read_csv(*args, **kwargs):
+            if self._original_read_csv is None:
+                raise RuntimeError("Original 'read_csv' function is not defined.")
             df = self._original_read_csv(*args, **kwargs)
             return self._tag_data_source(df, args, kwargs)
 
         def wrapped_read_excel(*args, **kwargs):
+            if self._original_read_excel is None:
+                raise RuntimeError("Original 'read_excel' function is not defined.")
             df = self._original_read_excel(*args, **kwargs)
             return self._tag_data_source(df, args, kwargs)
 
         def wrapped_merge(left, right, *args, **kwargs):
+            if self._original_merge is None:
+                raise RuntimeError("Original 'merge' function is not defined.")
             inheritance = kwargs.pop("_lineage_inheritance", None)
             merged = self._original_merge(left, right, *args, **kwargs)
             merged = fuse_data_lineage_columns(merged)
 
-            for relationship in _generate_relationships_between_tables(
-                left=left,
-                left_on=kwargs.get("left_on") or kwargs.get("on") or (args[2] if len(args) > 2 else None),
-                right=right,
-                right_on=kwargs.get("right_on") or kwargs.get("on") or (args[3] if len(args) > 3 else None),
-            ):
-                detected_relationship_hook(relationship)
+            if (left_on := kwargs.get("left_on") or kwargs.get("on") or (args[2] if len(args) > 2 else None)) is None:
+                logger.warning("Unable to detect 'right_on' key for lineage relationship generation in pd.merge")
+            if (right_on := kwargs.get("right_on") or kwargs.get("on") or (args[3] if len(args) > 3 else None)) is None:
+                logger.warning("Unable to detect 'right_on' key for lineage relationship generation in pd.merge")
+            if left_on is not None and right_on is not None:
+                for relationship in _generate_relationships_between_tables(
+                    left=left, left_on=left_on, right=right, right_on=right_on
+                ):
+                    detected_relationship_hook(relationship)
 
             return apply_data_lineage(
                 merged,
@@ -95,17 +105,24 @@ class PandasHookManager:
             )
 
         def wrapped_join(self_df, other, *args, **kwargs):
+            if self._original_join is None:
+                raise RuntimeError("Original 'join' function is not defined.")
             inheritance = kwargs.pop("_lineage_inheritance", None)
             joined = self._original_join(self_df, other, *args, **kwargs)
             joined = fuse_data_lineage_columns(joined)
 
-            for relationship in _generate_relationships_between_tables(
-                left=self_df,
-                left_on=kwargs.get("on") or (args[0] if len(args) > 0 else None),
-                right=other,
-                right_on=kwargs.get("right_on") or kwargs.get("on") or (args[1] if len(args) > 1 else None),
-            ):
-                detected_relationship_hook(relationship)
+            if (left_on := kwargs.get("left_on") or kwargs.get("on") or (args[2] if len(args) > 2 else None)) is None:
+                logger.warning("Unable to detect 'right_on' key for lineage relationship generation in pd.merge")
+            if (right_on := kwargs.get("right_on") or kwargs.get("on") or (args[3] if len(args) > 3 else None)) is None:
+                logger.warning("Unable to detect 'right_on' key for lineage relationship generation in pd.merge")
+            if left_on is not None and right_on is not None:
+                for relationship in _generate_relationships_between_tables(
+                    left=self_df,
+                    left_on=left_on,
+                    right=other,
+                    right_on=right_on,
+                ):
+                    detected_relationship_hook(relationship)
 
             return apply_data_lineage(
                 joined,
@@ -176,15 +193,21 @@ def _list_tables_in_data_lineage(table: pd.DataFrame, join_key: str) -> list[str
 
 def _generate_relationships_between_tables(
     left: pd.DataFrame,
-    left_on: str,
+    left_on: str | tuple[str, ...],
     right: pd.DataFrame,
-    right_on: str,
+    right_on: str | tuple[str, ...],
 ) -> typing.Generator[erd.Relationship]:
-    for left_table in _list_tables_in_data_lineage(table=left, join_key=left_on):
-        for right_table in _list_tables_in_data_lineage(table=right, join_key=right_on):
+    left_keys = [left_on] if isinstance(left_on, str | int) else list(left_on)
+    right_keys = [right_on] if isinstance(right_on, str | int) else list(right_on)
+
+    for left_key, right_key in itertools.product(left_keys, right_keys):
+        for left_table, right_table in itertools.product(
+            _list_tables_in_data_lineage(table=left, join_key=left_key),
+            _list_tables_in_data_lineage(table=right, join_key=right_key),
+        ):
             # TODO: is this ok in terms of performance?
-            is_left_unique = left.duplicated(subset=[left_on]).sum() == 0
-            is_right_unique = right.duplicated(subset=[right_on]).sum() == 0
+            is_left_unique = left.duplicated(subset=[left_key]).sum() == 0
+            is_right_unique = right.duplicated(subset=[right_key]).sum() == 0
             if is_left_unique and is_right_unique:
                 relationship_type = erd.RelationshipType.ONE_TO_ONE
             elif is_left_unique and not is_right_unique:
@@ -195,8 +218,8 @@ def _generate_relationships_between_tables(
                 relationship_type = erd.RelationshipType.MANY_TO_MANY
             yield erd.Relationship(
                 left_name=left_table,
-                left_key=left_on,
+                left_key=left_key,
                 right_name=right_table,
-                right_key=right_on,
+                right_key=right_key,
                 relationship_type=relationship_type,
             )

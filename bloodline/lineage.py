@@ -157,7 +157,7 @@ class Lineage:
             table = result[return_arg] if return_arg is not None else result
             if not isinstance(table, pd.DataFrame):
                 logger.warning(
-                    f"Lineage decorator expected a dataframe from '{func.__name__}'; lineage was not updated.",
+                    f"Lineage decorator expected a dataframe from '{func}'; lineage was not updated.",
                 )
                 return result
 
@@ -172,7 +172,7 @@ class Lineage:
                     return result
                 else:
                     logger.warning(
-                        f"Lineage decorator expected a tuple or dict when using 'return_arg' in '{func.__name__}'; "
+                        f"Lineage decorator expected a tuple or dict when using 'return_arg' in '{func}'; "
                         "lineage was not updated.",
                     )
                     return result
