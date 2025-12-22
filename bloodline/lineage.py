@@ -53,12 +53,14 @@ class Lineage:
         extra_sources_type: Iterable[str] | None = None,
         verbosity: bool = False,
         dataframe_protocol: str = DataFrameProtocol.PANDAS,
+        detect_relationships: bool = False,
     ) -> None:
         self.default_source = default_source or Source(source_type=SourceType.UNKNOWN)
         self.extra_sources_type = tuple(extra_sources_type or ())
         self.verbosity = verbosity
         self.dataframe_protocol = DataFrameProtocol(dataframe_protocol)
         self.erd = erd.EntityRelationshipDiagram()
+        self.detect_relationships = detect_relationships
 
     def __call__(
         self,
@@ -158,9 +160,10 @@ class Lineage:
             patch = {
                 DataFrameProtocol.PANDAS: pandas_lineage_patched,
             }[self.dataframe_protocol]
-
             with (
-                patch(detected_relationship_hook=self._handle_detected_relationship),
+                patch(
+                    detected_relationship_hook=self._handle_detected_relationship if self.detect_relationships else None
+                ),
                 temporary_lineage_context(runtime_config),
             ):
                 result = func(*args, **kwargs)

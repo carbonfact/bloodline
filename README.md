@@ -266,7 +266,7 @@ Bloodline keeps track of each join between tables. You can generate E/R diagrams
 >>> import pandas as pd
 >>> import bloodline as bl
 
->>> lineage = bl.Lineage()
+>>> lineage = bl.Lineage(detect_relationships=True)
 
 >>> @lineage
 ... def load_products():
@@ -286,6 +286,9 @@ Bloodline keeps track of each join between tables. You can generate E/R diagrams
 ...     return merged
 
 >>> purchases = load_purchases()
+
+>>> len(lineage.erd.relationships)
+2
 
 >>> with open("tests/examples/erd.mmd", "w") as f:
 ...     _ = f.write(lineage.erd.to_mermaid())

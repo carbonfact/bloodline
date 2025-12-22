@@ -91,15 +91,20 @@ class PandasHookManager:
             merged = self._original_merge(left, right, *args, **kwargs)
             merged = fuse_data_lineage_columns(merged)
 
-            if (left_on := kwargs.get("left_on") or kwargs.get("on") or (args[2] if len(args) > 2 else None)) is None:
-                logger.warning("Unable to detect 'right_on' key for lineage relationship generation in pd.merge")
-            if (right_on := kwargs.get("right_on") or kwargs.get("on") or (args[3] if len(args) > 3 else None)) is None:
-                logger.warning("Unable to detect 'right_on' key for lineage relationship generation in pd.merge")
-            if left_on is not None and right_on is not None:
-                for relationship in _generate_relationships_between_tables(
-                    left=left, left_on=left_on, right=right, right_on=right_on
-                ):
-                    detected_relationship_hook(relationship)
+            if detected_relationship_hook is not None:
+                if (
+                    left_on := kwargs.get("left_on") or kwargs.get("on") or (args[2] if len(args) > 2 else None)
+                ) is None:
+                    logger.warning("Unable to detect 'right_on' key for lineage relationship generation in pd.merge")
+                if (
+                    right_on := kwargs.get("right_on") or kwargs.get("on") or (args[3] if len(args) > 3 else None)
+                ) is None:
+                    logger.warning("Unable to detect 'right_on' key for lineage relationship generation in pd.merge")
+                if left_on is not None and right_on is not None:
+                    for relationship in _generate_relationships_between_tables(
+                        left=left, left_on=left_on, right=right, right_on=right_on
+                    ):
+                        detected_relationship_hook(relationship)
 
             return apply_data_lineage(
                 merged,
@@ -114,18 +119,23 @@ class PandasHookManager:
             joined = self._original_join(self_df, other, *args, **kwargs)
             joined = fuse_data_lineage_columns(joined)
 
-            if (left_on := kwargs.get("left_on") or kwargs.get("on") or (args[2] if len(args) > 2 else None)) is None:
-                logger.warning("Unable to detect 'right_on' key for lineage relationship generation in pd.merge")
-            if (right_on := kwargs.get("right_on") or kwargs.get("on") or (args[3] if len(args) > 3 else None)) is None:
-                logger.warning("Unable to detect 'right_on' key for lineage relationship generation in pd.merge")
-            if left_on is not None and right_on is not None:
-                for relationship in _generate_relationships_between_tables(
-                    left=self_df,
-                    left_on=left_on,
-                    right=other,
-                    right_on=right_on,
-                ):
-                    detected_relationship_hook(relationship)
+            if detected_relationship_hook is not None:
+                if (
+                    left_on := kwargs.get("left_on") or kwargs.get("on") or (args[2] if len(args) > 2 else None)
+                ) is None:
+                    logger.warning("Unable to detect 'right_on' key for lineage relationship generation in pd.merge")
+                if (
+                    right_on := kwargs.get("right_on") or kwargs.get("on") or (args[3] if len(args) > 3 else None)
+                ) is None:
+                    logger.warning("Unable to detect 'right_on' key for lineage relationship generation in pd.merge")
+                if left_on is not None and right_on is not None:
+                    for relationship in _generate_relationships_between_tables(
+                        left=self_df,
+                        left_on=left_on,
+                        right=other,
+                        right_on=right_on,
+                    ):
+                        detected_relationship_hook(relationship)
 
             return apply_data_lineage(
                 joined,

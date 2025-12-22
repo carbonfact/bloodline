@@ -79,7 +79,7 @@ class TestIntegrationWorkflow:
 
     def test_join_on_single_key_tracks_lineage(self):
         """Test that joining two tables on a single key properly tracks data lineage."""
-        lineage = bl.Lineage()
+        lineage = bl.Lineage(detect_relationships=True)
 
         # Create decorators for different sources
         database_source = lineage.with_source(

@@ -1,6 +1,6 @@
 [project]
 name = "bloodline"
-version = "0.2.2"
+version = "0.3.0"
 description = "🧛 Row-level data lineage tracking"
 readme = "README.md"
 authors = [
