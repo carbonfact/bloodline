@@ -68,7 +68,10 @@ class Lineage:
     ):
         """Allow the instance itself to be used as ``@lineage``."""
         decorator = self._build_decorator(
-            source=self.default_source, base_metadata=metadata, return_arg=return_arg, inheritance=inheritance
+            source=self.default_source,
+            base_metadata=metadata,
+            return_arg=return_arg,
+            inheritance=inheritance,
         )
         if func is None:
             return decorator
@@ -80,10 +83,16 @@ class Lineage:
         source: str | Source | SourceType,
         metadata: Mapping[str, typing.Any] | None = None,
         return_arg: typing.Hashable | None = None,
+        inheritance: dict[str, str] | None = None,
     ):
         """Return a decorator bound to a specific ``source`` type/metadata."""
         override = self._coerce_source(source)
-        return self._build_decorator(source=override, base_metadata=metadata, return_arg=return_arg)
+        return self._build_decorator(
+            source=override,
+            base_metadata=metadata,
+            return_arg=return_arg,
+            inheritance=inheritance,
+        )
 
     # ------------------------------------------------------------------
 
