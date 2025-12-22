@@ -54,7 +54,7 @@ class Lineage:
         verbosity: bool = False,
         dataframe_protocol: str = DataFrameProtocol.PANDAS,
     ) -> None:
-        self.default_source = default_source or Source.unknown()
+        self.default_source = default_source or Source(source_type=SourceType.UNKNOWN)
         self.extra_sources_type = tuple(extra_sources_type or ())
         self.verbosity = verbosity
         self.dataframe_protocol = DataFrameProtocol(dataframe_protocol)

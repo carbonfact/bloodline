@@ -15,7 +15,7 @@ from . import erd
 from .apply import apply_data_lineage
 from .constants import DATA_LINEAGE_COLUMN
 from .context import get_lineage_context
-from .source import Source
+from .source import Source, SourceType
 from .tracking import is_data_lineage_tracked
 from .utils import to_dict_fast
 
@@ -156,7 +156,9 @@ class PandasHookManager:
             return df
 
         filepath = PandasHookManager._extract_path(args, kwargs)
-        source = Source.data_source(file_path=str(filepath) if filepath else None)
+        source = Source(
+            source_type=SourceType.DATA_SOURCE, source_metadata={"file_path": str(filepath) if filepath else None}
+        )
         return apply_data_lineage(df, default_source=source)
 
     @staticmethod
@@ -185,7 +187,7 @@ def pandas_lineage_patched(detected_relationship_hook: Callable[[erd.Relationshi
 
 def _active_default_source() -> Source:
     ctx = get_lineage_context()
-    return ctx.default_source if ctx else Source.unknown()
+    return ctx.default_source if ctx else Source(source_type=SourceType.UNKNOWN)
 
 
 def _list_tables_in_data_lineage(table: pd.DataFrame, join_key: str) -> list[str]:

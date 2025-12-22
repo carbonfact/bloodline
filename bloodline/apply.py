@@ -37,10 +37,12 @@ def apply_data_lineage(
         candidates &= set(column_names)
     candidates.discard(DATA_LINEAGE_COLUMN)
 
-    if isinstance(default_source, Source):
-        default_payload = default_source.to_dict()
-    else:
-        default_payload = default_source
+    if default_source is not None:
+        if not isinstance(default_source, dict):
+            default_source = default_source.to_dict()
+        default_source = {
+            k: v for k, v in (default_source or {}).items() if v is not None and not (isinstance(v, dict) and not v)
+        }
 
     imputed = []
     for row in to_dict_fast(table_slice):
@@ -59,8 +61,8 @@ def apply_data_lineage(
             parent = inheritance.get(column)
             if parent and parent in lineage and not override:
                 lineage[column] = lineage[parent]
-            elif default_payload:
-                lineage[column] = default_payload
+            elif default_source:
+                lineage[column] = default_source
 
         for existing in list(lineage.keys()):
             if existing not in row or is_empty(row[existing]):

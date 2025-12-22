@@ -30,14 +30,6 @@ class Source:
         if isinstance(self.source_type, SourceType):
             object.__setattr__(self, "source_type", self.source_type.value)
 
-    @staticmethod
-    def data_source(**metadata: Any) -> Source:
-        return Source(source_type=SourceType.DATA_SOURCE, source_metadata=dict(metadata))
-
-    @staticmethod
-    def unknown(**metadata: Any) -> Source:
-        return Source(source_type=SourceType.UNKNOWN, source_metadata=dict(metadata))
-
     def with_metadata(self, **metadata: Any) -> Source:
         merged = dict(self.source_metadata)
         merged.update(metadata)

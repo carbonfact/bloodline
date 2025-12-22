@@ -7,7 +7,7 @@ from bloodline import erd
 class TestIntegrationWorkflow:
     def test_lineage_flow_with_rule_override(self):
         lineage = bl.Lineage(
-            default_source=bl.Source.unknown(reason="default"),
+            default_source=bl.Source(source_type=bl.SourceType.UNKNOWN, source_metadata={"reason": "default"}),
             extra_sources_type=("HEURISTIC", "RULE"),
         )
 

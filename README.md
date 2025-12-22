@@ -103,7 +103,7 @@ Bloodline's default behavior is to impute a default source for new columns:
 >>> pprint(products['data_lineage'].iloc[0])
 {'mass': {'source_metadata': {'file_path': 'tests/examples/products.csv'},
           'source_type': 'DATA_SOURCE'},
- 'mass_kg': {'source_metadata': {}, 'source_type': 'UNKNOWN'},
+ 'mass_kg': {'source_type': 'UNKNOWN'},
  'price': {'source_metadata': {'file_path': 'tests/examples/products.csv'},
            'source_type': 'DATA_SOURCE'},
  'sku': {'source_metadata': {'file_path': 'tests/examples/products.csv'},
@@ -125,7 +125,7 @@ Bloodline automatically merges `data_lineage` columns when you merge dataframes.
 >>> purchases = read_purchases()
 >>> for col in purchases.columns.difference(['data_lineage']):
 ...     dl = purchases['data_lineage'].iloc[0][col]
-...     print(f"{col:<8} {dl['source_type']:<12} {dl['source_metadata'].get('file_path') or ''}")
+...     print(f"{col:<8} {dl['source_type']:<12} {dl.get('source_metadata', {}).get('file_path') or ''}")
 date     DATA_SOURCE  tests/examples/purchases.csv
 id       DATA_SOURCE  tests/examples/users.csv
 mass     DATA_SOURCE  tests/examples/products.csv
@@ -202,7 +202,7 @@ You can also specify custom sources when using the decorator:
 
 >>> df = read_data_from_db()
 >>> pprint(df['data_lineage'].iloc[0])
-{'price': {'source_metadata': {}, 'source_type': 'SNOWFLAKE'}}
+{'price': {'source_type': 'SNOWFLAKE'}}
 
 ```
 
@@ -221,10 +221,10 @@ When creating new columns derived from existing ones, you can instruct Bloodline
 
 >>> products = add_discounted_price(df)
 >>> pprint(df['data_lineage'].iloc[0])
-{'discounted_price': {'source_metadata': {}, 'source_type': 'SNOWFLAKE'},
+{'discounted_price': {'source_type': 'SNOWFLAKE'},
  'foo': {'source_metadata': {'reason': 'default for new columns'},
          'source_type': 'CUSTOM_DEFAULT'},
- 'price': {'source_metadata': {}, 'source_type': 'SNOWFLAKE'}}
+ 'price': {'source_type': 'SNOWFLAKE'}}
 
 ```
 
@@ -250,7 +250,7 @@ The `@lineage` decorator should cover most use cases, but sometimes you may need
 
 >>> df = clip_price(df)
 >>> pprint(df['data_lineage'].iloc[1])
-{'discounted_price': {'source_metadata': {}, 'source_type': 'SNOWFLAKE'},
+{'discounted_price': {'source_type': 'SNOWFLAKE'},
  'foo': {'source_metadata': {'reason': 'default for new columns'},
          'source_type': 'CUSTOM_DEFAULT'},
  'price': {'source_metadata': {'heuristic_name': 'mass_filler'},
