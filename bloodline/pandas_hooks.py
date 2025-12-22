@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import itertools
+import logging
 import typing
 from collections.abc import Callable
 from contextlib import contextmanager
 from pathlib import Path
 
 import pandas as pd
-from loguru import logger
 
 from . import erd
 from .apply import apply_data_lineage
@@ -19,6 +19,8 @@ from .source import Source
 from .tracking import is_data_lineage_tracked
 
 OriginalFunction = Callable[..., typing.Any]
+
+logger = logging.getLogger(__name__)
 
 
 def fuse_data_lineage_columns(df: pd.DataFrame) -> pd.DataFrame:

@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import enum
 import functools
+import logging
 import typing
 from collections.abc import Callable, Iterable, Mapping
 
 import pandas as pd
-from loguru import logger
 
 from . import erd
 from .apply import apply_data_lineage
@@ -17,6 +17,8 @@ from .pandas_hooks import pandas_lineage_patched
 from .source import Source, SourceType
 
 __all__ = ["Lineage"]
+
+logger = logging.getLogger(__name__)
 
 Decorator = Callable[[Callable[..., pd.DataFrame]], Callable[..., pd.DataFrame]]
 
