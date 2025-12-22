@@ -9,7 +9,7 @@ import pandas as pd
 from .constants import DATA_LINEAGE_COLUMN
 from .source import Source
 from .tracking import is_data_lineage_tracked
-from .utils import ensure_lineage_column, is_empty
+from .utils import ensure_lineage_column, is_empty, to_dict_fast
 
 __all__ = ["apply_data_lineage"]
 
@@ -43,7 +43,7 @@ def apply_data_lineage(
         default_payload = default_source
 
     imputed = []
-    for _, row in table_slice.iterrows():
+    for row in to_dict_fast(table_slice):
         lineage = row.get(DATA_LINEAGE_COLUMN, {})
         lineage = lineage if isinstance(lineage, dict) else {}
         lineage = {k: v for k, v in lineage.items() if v is not None}

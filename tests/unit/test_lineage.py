@@ -1,5 +1,6 @@
+import logging
+
 import pandas as pd
-from loguru import logger
 
 from bloodline.constants import DATA_LINEAGE_COLUMN
 from bloodline.lineage import Lineage
@@ -33,25 +34,17 @@ def test_with_source_allows_custom_type():
     assert result.loc[0, DATA_LINEAGE_COLUMN]["mass"]["source_metadata"]["heuristic_name"] == "mass_filler"
 
 
-def test_non_dataframe_result_emits_warning():
+def test_non_dataframe_result_emits_warning(caplog):
     lineage = Lineage()
 
     @lineage
     def invalid():
         return "oops"
 
-    captured: list[str] = []
-
-    def _sink(message):
-        captured.append(str(message))
-
-    sink_id = logger.add(_sink, level="WARNING")
-    try:
+    with caplog.at_level(logging.WARNING):
         assert invalid() == "oops"
-    finally:
-        logger.remove(sink_id)
 
-    assert any("Lineage decorator expected" in entry for entry in captured)
+    assert any("Lineage decorator expected" in record.message for record in caplog.records)
 
 
 def test_tuple_return():

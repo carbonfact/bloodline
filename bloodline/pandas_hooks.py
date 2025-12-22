@@ -17,6 +17,7 @@ from .constants import DATA_LINEAGE_COLUMN
 from .context import get_lineage_context
 from .source import Source
 from .tracking import is_data_lineage_tracked
+from .utils import to_dict_fast
 
 OriginalFunction = Callable[..., typing.Any]
 
@@ -29,7 +30,7 @@ def fuse_data_lineage_columns(df: pd.DataFrame) -> pd.DataFrame:
         return df
 
     fused = []
-    for _, row in df.iterrows():
+    for row in to_dict_fast(df):
         merged = {}
         for column in data_lineage_columns:
             payload = row[column]
