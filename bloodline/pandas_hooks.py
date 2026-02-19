@@ -54,7 +54,7 @@ class PandasHookManager:
         self._original_merge: OriginalFunction | None = None
         self._original_join: OriginalFunction | None = None
 
-    def install(self, detected_relationship_hook: Callable[[erd.Relationship], None]) -> None:
+    def install(self, detected_relationship_hook: Callable[[erd.Relationship], None] | None) -> None:
         if self._stack_depth == 0:
             self._patch(detected_relationship_hook=detected_relationship_hook)
         self._stack_depth += 1
@@ -66,7 +66,7 @@ class PandasHookManager:
         if self._stack_depth == 0:
             self._restore()
 
-    def _patch(self, detected_relationship_hook: Callable[[erd.Relationship], None]) -> None:
+    def _patch(self, detected_relationship_hook: Callable[[erd.Relationship], None] | None) -> None:
         self._original_read_csv = pd.read_csv
         self._original_read_excel = pd.read_excel
         self._original_merge = pd.merge
@@ -187,7 +187,7 @@ HOOK_MANAGER = PandasHookManager()
 
 
 @contextmanager
-def pandas_lineage_patched(detected_relationship_hook: Callable[[erd.Relationship], None]):
+def pandas_lineage_patched(detected_relationship_hook: Callable[[erd.Relationship], None] | None):
     HOOK_MANAGER.install(detected_relationship_hook=detected_relationship_hook)
     try:
         yield
@@ -203,7 +203,7 @@ def _active_default_source() -> Source:
 def _list_tables_in_data_lineage(table: pd.DataFrame, join_key: str) -> list[str]:
     if DATA_LINEAGE_COLUMN not in table.columns:
         return []
-    return table[DATA_LINEAGE_COLUMN].str[join_key].str["source_metadata"].str["file_path"].unique().tolist()  # type: ignore
+    return table[DATA_LINEAGE_COLUMN].str[join_key].str["source_metadata"].str["file_path"].unique().tolist()
 
 
 def _generate_relationships_between_tables(
